@@ -143,7 +143,7 @@ fun PuzzleScreen(
                             ) {
                                 items(
                                     items = state.boardPieces,
-                                    key = { index -> index?.id ?: index.toString() }
+//                                    key = { index -> index?.id ?: index.toString() } TODO getting nul for some causing crash
                                 ) { piece ->
                                     PuzzleCell(
                                         piece = piece,
@@ -182,7 +182,7 @@ fun PuzzleScreen(
                         ) {
                             items(
                                 items = state.unplacedPieces,
-                                key = { it.id }
+//                                key = { it.id } TODO getting nul for some causing crash
                             ) { piece ->
                                 UnplacedPieceItem(
                                     piece = piece,

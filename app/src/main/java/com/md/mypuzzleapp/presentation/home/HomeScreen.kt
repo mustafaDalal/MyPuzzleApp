@@ -231,11 +231,11 @@ fun PuzzleItem(
             modifier = Modifier.fillMaxSize()
         ) {
             // Puzzle image
-            if (puzzle.imageUrl != null) {
+            if (puzzle.originalImage != null) {
                 Image(
                     painter = rememberAsyncImagePainter(
                         ImageRequest.Builder(LocalContext.current)
-                            .data(data = puzzle.imageUrl)
+                            .data(data = puzzle.originalImage)
                             .crossfade(true)
                             .build()
                     ),

@@ -9,11 +9,11 @@ import javax.inject.Inject
 class UploadCustomImageUseCase @Inject constructor(
     private val puzzleRepository: PuzzleRepository
 ) {
-    suspend operator fun invoke(
-        uri: Uri,
-        name: String,
-        difficulty: PuzzleDifficulty
-    ): Puzzle {
-        return puzzleRepository.uploadCustomImage(uri, name, difficulty)
-    }
+//    suspend operator fun invoke(
+//        uri: Uri,
+//        name: String,
+//        difficulty: PuzzleDifficulty
+//    ): Puzzle {
+//        return puzzleRepository.uploadCustomImage(uri, name, difficulty)
+//    }
 } 

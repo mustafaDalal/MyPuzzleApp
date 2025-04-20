@@ -11,10 +11,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.md.mypuzzleapp.domain.model.PuzzleDifficulty
-import com.md.mypuzzleapp.domain.usecase.CreatePuzzleFromBitmapUseCase
-import com.md.mypuzzleapp.domain.usecase.CreatePuzzleUseCase
-import com.md.mypuzzleapp.domain.usecase.GetAllPuzzlesUseCase
-import com.md.mypuzzleapp.domain.usecase.GetRandomImageUseCase
+import com.md.mypuzzleapp.domain.usecase.*
 import com.md.mypuzzleapp.presentation.common.Screen
 import com.md.mypuzzleapp.presentation.common.UiEvent
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -27,6 +24,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
+    private val addPuzzlesUseCase: AddPuzzleUseCase,
     private val getAllPuzzlesUseCase: GetAllPuzzlesUseCase,
     private val createPuzzleUseCase: CreatePuzzleUseCase,
     private val createPuzzleFromBitmapUseCase: CreatePuzzleFromBitmapUseCase,
@@ -99,18 +97,7 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             state = state.copy(isLoading = true)
             try {
-                createPuzzleUseCase(
-                    name = state.uploadImageName,
-                    imageUri = uri,
-                    difficulty = state.selectedDifficulty
-                )
-                state = state.copy(
-                    isLoading = false,
-                    isUploadDialogVisible = false,
-                    uploadImageName = "",
-                    selectedDifficulty = PuzzleDifficulty.EASY
-                )
-                _uiEvent.send(UiEvent.ShowSnackbar("Puzzle created successfully"))
+                createPuzzle(createPuzzleUseCase(uri), state.uploadImageName, state.selectedDifficulty)
             } catch (e: Exception) {
                 state = state.copy(isLoading = false)
                 _uiEvent.send(UiEvent.ShowSnackbar(e.message ?: "Error creating puzzle"))
@@ -127,39 +114,40 @@ class HomeViewModel @Inject constructor(
                     throw Exception("Failed to fetch image: ${response.code()}")
                 }
 
-                // Show upload dialog with default name
-
-                Log.d("Mustafa Debug", "response body - ${response.body()}")
-                state = state.copy(
-                    isUploadDialogVisible = true,
-                    uploadImageName = "Random Puzzle ${System.currentTimeMillis()}",
-                    selectedDifficulty = PuzzleDifficulty.EASY
-                )
-
-                // Convert response to bitmap and create puzzle
                 val bitmap = withContext(Dispatchers.IO) {
                     response.body()?.byteStream()?.use { inputStream ->
                         BitmapFactory.decodeStream(inputStream)
                     } ?: throw Exception("Failed to decode image")
                 }
+                createPuzzle(bitmap, "Random Puzzle ${System.currentTimeMillis()}", state.selectedDifficulty)
+            } catch (e: Exception) {
+                state = state.copy(isLoading = false)
+                _uiEvent.send(UiEvent.ShowSnackbar(e.message ?: "Error fetching random image"))
+            }
+        }
+    }
 
-                // Create puzzle with the bitmap
-                createPuzzleFromBitmapUseCase(
-                    name = state.uploadImageName,
+    private fun createPuzzle(bitmap: Bitmap, name: String, difficulty: PuzzleDifficulty) {
+        viewModelScope.launch {
+            state = state.copy(isLoading = true)
+            try {
+                val puzzle = createPuzzleFromBitmapUseCase(
+                    name = name,
                     bitmap = bitmap,
-                    difficulty = state.selectedDifficulty
+                    difficulty = difficulty
                 )
 
+                addPuzzlesUseCase(puzzle)
                 state = state.copy(
                     isLoading = false,
                     isUploadDialogVisible = false,
                     uploadImageName = "",
                     selectedDifficulty = PuzzleDifficulty.EASY
                 )
-                _uiEvent.send(UiEvent.ShowSnackbar("Random puzzle created successfully"))
+                _uiEvent.send(UiEvent.ShowSnackbar("Puzzle created successfully"))
             } catch (e: Exception) {
                 state = state.copy(isLoading = false)
-                _uiEvent.send(UiEvent.ShowSnackbar(e.message ?: "Error fetching random image"))
+                _uiEvent.send(UiEvent.ShowSnackbar(e.message ?: "Error creating puzzle"))
             }
         }
     }

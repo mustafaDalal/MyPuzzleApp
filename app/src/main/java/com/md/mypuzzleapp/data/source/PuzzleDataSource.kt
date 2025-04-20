@@ -15,6 +15,6 @@ interface PuzzleDataSource {
     suspend fun addPuzzle(puzzle: Puzzle): String
     suspend fun updatePuzzle(puzzle: Puzzle)
     suspend fun deletePuzzle(id: String)
-    suspend fun uploadCustomImage(uri: Uri, name: String, difficulty: PuzzleDifficulty): Puzzle
+//    suspend fun uploadCustomImage(uri: Uri, name: String, difficulty: PuzzleDifficulty): Puzzle
     suspend fun getDefaultPuzzles(): List<Puzzle>
 } 

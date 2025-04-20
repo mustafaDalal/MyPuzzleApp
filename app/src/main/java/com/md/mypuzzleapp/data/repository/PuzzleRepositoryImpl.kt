@@ -49,7 +49,7 @@ class PuzzleRepositoryImpl @Inject constructor(
         puzzles.removeIf { it.id == id }
     }
     
-    override suspend fun uploadCustomImage(
+    suspend fun uploadCustomImage(
         uri: Uri,
         name: String,
         difficulty: PuzzleDifficulty
@@ -126,15 +126,13 @@ class PuzzleRepositoryImpl @Inject constructor(
         return pieces
     }
 
-    override suspend fun createPuzzleFromUri(uri: Uri, name: String, difficulty: PuzzleDifficulty): Puzzle {
+    override suspend fun createBitmapFromUri(uri: Uri): Bitmap {
 
-        Puzzle(
-            id = UUID.randomUUID().toString(),
-            name = name,
-            difficulty = difficulty,
-            pieces =  ,
-            localImageUri = uri,
-            createdAt = System.currentTimeMillis()
+        return withContext(Dispatchers.IO) {
+                context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                    BitmapFactory.decodeStream(inputStream)
+                } ?: throw Exception("Failed to load image from URI")
+            }
 
     }
 } 

@@ -14,6 +14,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.md.mypuzzleapp.presentation.common.Screen
 import com.md.mypuzzleapp.presentation.home.HomeScreen
+import com.md.mypuzzleapp.presentation.puzzle.PuzzleScreen
 import com.md.mypuzzleapp.ui.theme.MyPuzzleAppTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -51,6 +52,9 @@ class MainActivity : ComponentActivity() {
                         ) {
                             // PuzzleScreen will be implemented later
                             // For now, we'll just navigate back when a puzzle is selected
+                            PuzzleScreen(onNavigateBack = { navController.navigate(Screen.Home.route)})
+
+
                         }
                     }
                 }

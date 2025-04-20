@@ -74,19 +74,19 @@ class PuzzleViewModel @Inject constructor(
                 val puzzle = puzzleRepository.getPuzzleById(id)
 
                 puzzle.collect{
-//                    it?.let { puzzleData ->
-//                        val pieces = preparePuzzlePiecesUseCase(puzzleData)
-//                        val gridSize = puzzleData.difficulty.gridSize
-//                        val totalPieces = gridSize * gridSize
-//
-//                        state = state.copy(
-//                            puzzle = puzzleData,
-//                            puzzlePieces = pieces,
-//                            boardPieces = List(totalPieces) { null },
-//                            unplacedPieces = pieces,
-//                            isLoading = false
-//                        )
-//                    }
+                    it?.let { puzzleData ->
+                        val pieces = preparePuzzlePiecesUseCase(puzzleData)
+                        val gridSize = puzzleData.difficulty.gridSize
+                        val totalPieces = gridSize * gridSize
+
+                        state = state.copy(
+                            puzzle = puzzleData,
+                            puzzlePieces = pieces,
+                            boardPieces = List(totalPieces) { null },
+                            unplacedPieces = pieces,
+                            isLoading = false
+                        )
+                    }
                 }
             } catch (e: Exception) {
                 state = state.copy(isLoading = false)

@@ -70,25 +70,28 @@ class FirebasePuzzleDataSource @Inject constructor(
         puzzlesCollection.document(id).delete().await()
     }
     
-    override suspend fun uploadCustomImage(
-        uri: Uri,
-        name: String,
-        difficulty: PuzzleDifficulty
-    ): Puzzle {
-        val storageRef = storage.reference.child("puzzle_images/${System.currentTimeMillis()}_${uri.lastPathSegment}")
-        val uploadTask = storageRef.putFile(uri).await()
-        val downloadUrl = uploadTask.storage.downloadUrl.await().toString()
-        
-        val puzzle = Puzzle(
-            name = name,
-            imageUrl = downloadUrl,
-            difficulty = difficulty,
-            isCustom = true
-        )
-        
-        val documentReference = puzzlesCollection.add(puzzle).await()
-        return puzzle.copy(id = documentReference.id)
-    }
+//    override suspend fun uploadCustomImage(
+//        uri: Uri,
+//        name: String,
+//        difficulty: PuzzleDifficulty
+//    ): Puzzle {
+//        val storageRef = storage.reference.child("puzzle_images/${System.currentTimeMillis()}_${uri.lastPathSegment}")
+//        val uploadTask = storageRef.putFile(uri).await()
+//        val downloadUrl = uploadTask.storage.downloadUrl.await().toString()
+//
+//        /*val puzzle = Puzzle(
+//            name = name,
+//            imageUrl = downloadUrl,
+//            difficulty = difficulty,
+//            isCustom = true
+//        )
+//
+//        val documentReference = puzzlesCollection.add(puzzle).await()
+//        return puzzle.copy(id = documentReference.id)
+//        */
+//
+//
+//    }
     
     override suspend fun getDefaultPuzzles(): List<Puzzle> {
         val snapshot = puzzlesCollection

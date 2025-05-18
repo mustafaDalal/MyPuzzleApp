@@ -49,20 +49,6 @@ class PuzzleRepositoryImpl @Inject constructor(
         puzzles.removeIf { it.id == id }
     }
     
-    suspend fun uploadCustomImage(
-        uri: Uri,
-        name: String,
-        difficulty: PuzzleDifficulty
-    ): Puzzle = withContext(Dispatchers.IO) {
-        // Load bitmap from URI
-        val bitmap = context.contentResolver.openInputStream(uri)?.use { inputStream ->
-            BitmapFactory.decodeStream(inputStream)
-        } ?: throw IllegalArgumentException("Failed to load image from URI")
-
-        // Create puzzle from bitmap
-        createPuzzleFromBitmap(bitmap, name, difficulty)
-    }
-    
     override suspend fun createPuzzleFromBitmap(
         bitmap: Bitmap,
         name: String,
@@ -85,11 +71,6 @@ class PuzzleRepositoryImpl @Inject constructor(
             createdAt = System.currentTimeMillis()
         )
     }
-    
-    override suspend fun getDefaultPuzzles(): List<Puzzle> {
-
-        return emptyList()
-    }
 
     private fun createPieces(bitmap: Bitmap, rows: Int, cols: Int): List<PuzzlePiece> {
         val pieces = mutableListOf<PuzzlePiece>()
@@ -107,15 +88,13 @@ class PuzzleRepositoryImpl @Inject constructor(
                     pieceHeight
                 )
 
+                val position = row * cols + col
                 pieces.add(
                     PuzzlePiece(
                         id = id++,
                         bitmap = pieceBitmap,
-                        correctX = row,
-                        correctY = col,
-                        currentX = -1,  // Initially not placed
-                        currentY = -1,
-                        isPlaced = false
+                        correctPosition = position,
+                        currentPosition = position
                     )
                 )
             }
@@ -126,13 +105,9 @@ class PuzzleRepositoryImpl @Inject constructor(
         return pieces
     }
 
-    override suspend fun createBitmapFromUri(uri: Uri): Bitmap {
-
-        return withContext(Dispatchers.IO) {
-                context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                    BitmapFactory.decodeStream(inputStream)
-                } ?: throw Exception("Failed to load image from URI")
-            }
-
+    override suspend fun createBitmapFromUri(uri: Uri): Bitmap = withContext(Dispatchers.IO) {
+        context.contentResolver.openInputStream(uri)?.use { inputStream ->
+            BitmapFactory.decodeStream(inputStream)
+        } ?: throw Exception("Failed to load image from URI")
     }
 } 

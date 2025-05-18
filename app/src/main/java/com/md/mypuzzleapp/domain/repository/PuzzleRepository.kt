@@ -12,8 +12,6 @@ interface PuzzleRepository {
     suspend fun addPuzzle(puzzle: Puzzle): String
     suspend fun updatePuzzle(puzzle: Puzzle)
     suspend fun deletePuzzle(id: String)
-//    suspend fun uploadCustomImage(uri: Uri, name: String, difficulty: PuzzleDifficulty): Puzzle
-    suspend fun getDefaultPuzzles(): List<Puzzle>
     suspend fun createPuzzleFromBitmap(bitmap: Bitmap, name: String, difficulty: PuzzleDifficulty): Puzzle
     suspend fun createBitmapFromUri(uri: Uri): Bitmap
 } 

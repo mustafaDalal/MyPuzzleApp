@@ -6,12 +6,11 @@ import com.md.mypuzzleapp.domain.model.Puzzle
 data class PuzzleState(
     val puzzle: Puzzle? = null,
     val puzzlePieces: List<PuzzlePiece> = emptyList(),
-    val boardPieces: List<PuzzlePiece?> = emptyList(),
-    val unplacedPieces: List<PuzzlePiece> = emptyList(),
     val isLoading: Boolean = false,
     val isComplete: Boolean = false,
-    val isRevealingImage: Boolean = false,
-    val moves: Int = 0
+    val moves: Int = 0,
+    val isDragging: Boolean = false,
+    val isRevealingImage: Boolean = false
 )
 
 data class PuzzlePiece(

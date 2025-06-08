@@ -6,6 +6,7 @@ import android.graphics.Point
 import android.view.DragEvent
 import android.view.View
 import android.widget.FrameLayout
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -27,6 +28,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
@@ -39,6 +42,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.md.mypuzzleapp.presentation.common.UiEvent
+import kotlinx.coroutines.launch
+import androidx.compose.ui.graphics.graphicsLayer
 
 data class CellBounds(
     val position: Int,
@@ -175,7 +180,9 @@ fun PuzzleScreen(
                             viewModel.onEvent(PuzzleEvent.StopDragging)
                         },
                         scrollEnabled = !state.isDragging,
-                        isDragging = state.isDragging
+                        isDragging = state.isDragging,
+                        placedPieces = placedPieces,
+                        cellBounds = cellBounds
                     )
                 }
             }
@@ -188,28 +195,206 @@ fun DraggablePuzzlePiece(
     piece: PuzzlePiece,
     onDragStarted: (Int) -> Unit,
     onDragEnded: () -> Unit,
-    isDragging: Boolean
+    isDragging: Boolean,
+    gridPosition: Int? = null,
+    cellBounds: Map<Int, CellBounds> = emptyMap()
 ) {
     val context = LocalContext.current
     var isCurrentlyDragging by remember { mutableStateOf(false) }
     
-    // Reset local dragging state when isDragging changes to false
+    // Animation values for the original piece
+    val scale = remember { Animatable(1f) }
+    var alpha = remember { Animatable(1f) }
+    val dragOffsetX = remember { Animatable(0f) }
+    val dragOffsetY = remember { Animatable(0f) }
+    
+    // Animation values for position when moving to grid
+    val positionX = remember { Animatable(0f) }
+    val positionY = remember { Animatable(0f) }
+    
+    // Animation values for the drag shadow
+    var shadowScale by remember { mutableStateOf(1.1f) }
+    var shadowAlpha by remember { mutableStateOf(0.8f) }
+    
+    // Track drag position for original piece
+    var dragX by remember { mutableStateOf(0f) }
+    var dragY by remember { mutableStateOf(0f) }
+    
+    // Animate drag offset when drag position changes
+    LaunchedEffect(dragX, dragY) {
+        if (isCurrentlyDragging) {
+            dragOffsetX.animateTo(
+                targetValue = dragX,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessLow
+                )
+            )
+            dragOffsetY.animateTo(
+                targetValue = dragY,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessLow
+                )
+            )
+        }
+    }
+    
+    // Animate when dragging starts
+    LaunchedEffect(isCurrentlyDragging) {
+        if (isCurrentlyDragging) {
+            // Scale up and fade slightly
+            scale.animateTo(
+                targetValue = 1.1f,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessLow
+                )
+            )
+            alpha.animateTo(
+                targetValue = 0.9f, // Keep very visible during drag
+                animationSpec = tween(durationMillis = 200)
+            )
+            // Update shadow values
+            shadowScale = 1.2f
+            shadowAlpha = 0.9f
+        }
+    }
+    
+    // Reset animations when dragging ends
     LaunchedEffect(isDragging) {
         if (!isDragging) {
             isCurrentlyDragging = false
+            // Animate back to normal state
+            scale.animateTo(
+                targetValue = if (gridPosition != null) cellBounds[gridPosition]?.rect?.width?.div(100f) ?: 1f else 1f,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessLow
+                )
+            )
+            alpha.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(durationMillis = 200)
+            )
+            // Reset drag offset
+            dragOffsetX.animateTo(
+                targetValue = 0f,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessLow
+                )
+            )
+            dragOffsetY.animateTo(
+                targetValue = 0f,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessLow
+                )
+            )
+            // Reset shadow values
+            shadowScale = 1.1f
+            shadowAlpha = 0.8f
+            dragX = 0f
+            dragY = 0f
+        }
+    }
+
+    // Animate to grid position when piece is placed
+    LaunchedEffect(gridPosition) {
+        if (gridPosition != null) {
+            val bounds = cellBounds[gridPosition]
+            if (bounds != null) {
+                // Animate to grid position
+                launch {
+                    positionX.animateTo(
+                        targetValue = bounds.rect.left,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessLow
+                        )
+                    )
+                }
+                launch {
+                    positionY.animateTo(
+                        targetValue = bounds.rect.top,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessLow
+                        )
+                    )
+                }
+                // Animate scale to fit grid cell
+                launch {
+                    scale.animateTo(
+                        targetValue = bounds.rect.width / 100f, // Assuming piece size is 100.dp
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessLow
+                        )
+                    )
+                }
+            }
+        } else {
+            // Reset position when piece is returned to row
+            launch {
+                positionX.animateTo(
+                    targetValue = 0f,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessLow
+                    )
+                )
+            }
+            launch {
+                positionY.animateTo(
+                    targetValue = 0f,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessLow
+                    )
+                )
+            }
+            launch {
+                scale.animateTo(
+                    targetValue = 1f,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessLow
+                    )
+                )
+            }
         }
     }
     
     Box(
         modifier = Modifier
             .size(100.dp)
+            .graphicsLayer {
+                scaleX = scale.value
+                scaleY = scale.value
+//                translationX = positionX.value + dragOffsetX.value
+//                translationY = positionY.value + dragOffsetY.value
+            }
             .shadow(
                 elevation = if (isCurrentlyDragging) 12.dp else 2.dp,
                 shape = MaterialTheme.shapes.medium
             )
     ) {
+        // Original piece image
+        Image(
+            bitmap = piece.bitmap.asImageBitmap(),
+            contentDescription = "Puzzle piece ${piece.id}",
+            modifier = Modifier
+                .fillMaxSize()
+                .alpha(alpha.value)
+        )
+        
+        // Android View for drag handling
         AndroidView(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .alpha(0f), // Make the AndroidView invisible but still interactive
             factory = { ctx ->
                 FrameLayout(ctx).apply {
                     isLongClickable = true
@@ -220,40 +405,55 @@ fun DraggablePuzzlePiece(
                             onDragStarted(piece.id)
                             
                             val shadowBuilder = object : View.DragShadowBuilder(view) {
+                                private var lastX = 0f
+                                private var lastY = 0f
+                                private var currentScale = 1.1f
+                                private val paint = android.graphics.Paint().apply {
+                                    this.alpha = (shadowAlpha * 255).toInt()
+                                }
+                                
                                 override fun onProvideShadowMetrics(outShadowSize: Point, outShadowTouchPoint: Point) {
-                                    val width = (view.width * 1.1f).toInt()
-                                    val height = (view.height * 1.1f).toInt()
+                                    val width = (view.width * currentScale).toInt()
+                                    val height = (view.height * currentScale).toInt()
                                     outShadowSize.set(width, height)
                                     outShadowTouchPoint.set(width / 2, height / 2)
                                 }
 
                                 override fun onDrawShadow(canvas: Canvas) {
+                                    // Calculate smooth position
+                                    val targetX = canvas.width / 2f
+                                    val targetY = canvas.height / 2f
+                                    
+                                    // Smooth position transition
+                                    lastX += (targetX - lastX) * 0.3f
+                                    lastY += (targetY - lastY) * 0.3f
+                                    
+                                    // Update drag position for original piece
+                                    dragX = lastX - canvas.width / 2f
+                                    dragY = lastY - canvas.height / 2f
+                                    
+                                    // Smooth scale transition
+                                    currentScale += (shadowScale - currentScale) * 0.3f
+                                    
+                                    // Update paint alpha
+                                    paint.alpha = (shadowAlpha * 255).toInt()
+                                    
                                     canvas.save()
-                                    canvas.scale(1.1f, 1.1f)
-                                    view.draw(canvas)
+//                                    canvas.translate(lastX - canvas.width / 2f, lastY - canvas.height / 2f)
+                                    canvas.scale(currentScale, currentScale, canvas.width / 2f, canvas.height / 2f)
+                                    canvas.drawBitmap(piece.bitmap, 0f, 0f, paint)
                                     canvas.restore()
                                 }
                             }
                             
                             try {
-                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
-                                    view.startDragAndDrop(
-                                        ClipData.newPlainText("piece_id", piece.id.toString()),
-                                        shadowBuilder,
-                                        piece,
-                                        View.DRAG_FLAG_OPAQUE
-                                    )
-                                } else {
-                                    @Suppress("DEPRECATION")
-                                    view.startDrag(
-                                        ClipData.newPlainText("piece_id", piece.id.toString()),
-                                        shadowBuilder,
-                                        piece,
-                                        View.DRAG_FLAG_OPAQUE
-                                    )
-                                }
+                                view.startDragAndDrop(
+                                    ClipData.newPlainText("piece_id", piece.id.toString()),
+                                    shadowBuilder,
+                                    piece,
+                                    View.DRAG_FLAG_OPAQUE
+                                )
                             } catch (e: Exception) {
-                                // If drag start fails, reset states
                                 isCurrentlyDragging = false
                                 onDragEnded()
                             }
@@ -264,19 +464,19 @@ fun DraggablePuzzlePiece(
                     setOnDragListener { _, event ->
                         when (event.action) {
                             DragEvent.ACTION_DRAG_STARTED -> {
+                                shadowScale = 1.2f
+                                shadowAlpha = 0.9f
                                 true
                             }
                             DragEvent.ACTION_DRAG_ENDED -> {
                                 isCurrentlyDragging = false
+                                shadowScale = 1.1f
+                                shadowAlpha = 0.8f
                                 onDragEnded()
                                 true
                             }
-                            DragEvent.ACTION_DRAG_ENTERED -> {
-                                true
-                            }
-                            DragEvent.ACTION_DRAG_EXITED -> {
-                                true
-                            }
+                            DragEvent.ACTION_DRAG_ENTERED -> true
+                            DragEvent.ACTION_DRAG_EXITED -> true
                             DragEvent.ACTION_DROP -> {
                                 isCurrentlyDragging = false
                                 true
@@ -285,20 +485,6 @@ fun DraggablePuzzlePiece(
                         }
                     }
                 }
-            },
-            update = { view ->
-                view.removeAllViews()
-                ComposeView(context).apply {
-                    setContent {
-                        Image(
-                            bitmap = piece.bitmap.asImageBitmap(),
-                            contentDescription = "Puzzle piece ${piece.id}",
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .alpha(if (isCurrentlyDragging) 0.6f else 1f)
-                        )
-                    }
-                }.also { view.addView(it) }
             }
         )
     }
@@ -363,10 +549,44 @@ private fun PuzzleCell(
     isCorrectlyPlaced: Boolean
 ) {
     val context = LocalContext.current
+    val scale = remember { Animatable(1f) }
+    val alpha = remember { Animatable(1f) }
+    
+    // Animate when piece is correctly placed
+    LaunchedEffect(isCorrectlyPlaced) {
+        if (isCorrectlyPlaced) {
+            launch {
+                scale.animateTo(
+                    targetValue = 1.05f,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessLow
+                    )
+                )
+                scale.animateTo(
+                    targetValue = 1f,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessLow
+                    )
+                )
+            }
+            launch {
+                alpha.animateTo(
+                    targetValue = 0.8f,
+                    animationSpec = tween(durationMillis = 300)
+                )
+            }
+        }
+    }
     
     Box(
         modifier = Modifier
             .aspectRatio(1f)
+            .graphicsLayer {
+                scaleX = scale.value
+                scaleY = scale.value
+            }
             .border(
                 width = if (isDropTarget) 2.dp else 1.dp,
                 color = when {
@@ -383,7 +603,9 @@ private fun PuzzleCell(
     ) {
         piece?.let { puzzlePiece ->
             AndroidView(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .alpha(alpha.value),
                 factory = { ctx ->
                     FrameLayout(ctx).apply {
                         setOnClickListener {
@@ -398,9 +620,7 @@ private fun PuzzleCell(
                             Image(
                                 bitmap = puzzlePiece.bitmap.asImageBitmap(),
                                 contentDescription = "Puzzle piece ${puzzlePiece.id}",
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .alpha(if (isCorrectlyPlaced) 0.8f else 1f)
+                                modifier = Modifier.fillMaxSize()
                             )
                         }
                     }.also { view.addView(it) }
@@ -416,7 +636,9 @@ fun UnplacedPiecesRow(
     onDragStart: (Int) -> Unit,
     onDragEnd: () -> Unit,
     scrollEnabled: Boolean,
-    isDragging: Boolean
+    isDragging: Boolean,
+    placedPieces: Map<Int, PuzzlePiece> = emptyMap(),
+    cellBounds: Map<Int, CellBounds> = emptyMap()
 ) {
     var isScrolling by remember { mutableStateOf(false) }
     val scrollState = rememberLazyListState()
@@ -454,7 +676,9 @@ fun UnplacedPiecesRow(
                     isDragging = isDragging,
                     piece = piece,
                     onDragStarted = onDragStart,
-                    onDragEnded = onDragEnd
+                    onDragEnded = onDragEnd,
+                    gridPosition = placedPieces.entries.find { it.value.id == piece.id }?.key,
+                    cellBounds = cellBounds
                 )
             }
         }

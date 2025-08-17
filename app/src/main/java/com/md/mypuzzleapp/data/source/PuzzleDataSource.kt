@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.Flow
 
 /**
  * Interface defining the contract for puzzle data operations.
- * This allows for different implementations (Firebase, Room, etc.)
+ * This allows for different implementations (Supabase, Room, etc.)
  */
 interface PuzzleDataSource {
     fun getAllPuzzles(): Flow<List<Puzzle>>

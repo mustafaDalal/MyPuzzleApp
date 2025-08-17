@@ -5,17 +5,18 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import com.md.mypuzzleapp.data.source.PuzzleDataSource
-import com.md.mypuzzleapp.domain.model.Puzzle
-import com.md.mypuzzleapp.domain.model.PuzzleDifficulty
-import com.md.mypuzzleapp.domain.model.PuzzlePiece
+import com.md.mypuzzleapp.domain.model.*
 import com.md.mypuzzleapp.domain.repository.PuzzleRepository
+import com.md.mypuzzleapp.util.DeviceIdUtil
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.withContext
+import java.io.ByteArrayOutputStream
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
+import android.util.Log
 
 @Singleton
 class PuzzleRepositoryImpl @Inject constructor(
@@ -109,5 +110,77 @@ class PuzzleRepositoryImpl @Inject constructor(
         context.contentResolver.openInputStream(uri)?.use { inputStream ->
             BitmapFactory.decodeStream(inputStream)
         } ?: throw Exception("Failed to load image from URI")
+    }
+
+    override suspend fun addPuzzleWithImage(
+        name: String,
+        difficulty: String,
+        bitmap: Bitmap,
+        context: Context
+    ): Result<Puzzle> {
+        return try {
+            val userId = DeviceIdUtil.getDeviceId(context)
+            val puzzleId = UUID.randomUUID().toString()
+            
+            // Create puzzle object
+            val puzzle = Puzzle(
+                id = puzzleId,
+                name = name,
+                difficulty = when (difficulty) {
+                    "Easy" -> PuzzleDifficulty.EASY
+                    "Medium" -> PuzzleDifficulty.MEDIUM
+                    "Hard" -> PuzzleDifficulty.HARD
+                    else -> PuzzleDifficulty.EASY
+                },
+                pieces = emptyList(), // Will be generated when puzzle is loaded
+                originalImage = bitmap,
+                createdAt = System.currentTimeMillis()
+            )
+            
+            // Save puzzle to Supabase via data source
+            val savedPuzzleId = puzzleDataSource.addPuzzle(puzzle)
+            Log.d("SupabasePuzzleWrite", "Puzzle saved to Supabase with id: $savedPuzzleId")
+            
+            Result.success(puzzle.copy(id = savedPuzzleId))
+        } catch (e: Exception) {
+            Log.e("SupabasePuzzleWrite", "Exception while saving puzzle", e)
+            Result.failure(e)
+        }
+    }
+
+    override fun getAllPuzzlesForDevice(context: Context): Flow<List<Puzzle>> = flow {
+        try {
+            val puzzles = puzzleDataSource.getAllPuzzles()
+            puzzles.collect { puzzleList ->
+                emit(puzzleList)
+            }
+        } catch (e: Exception) {
+            Log.e("SupabasePuzzleRead", "Failed to get puzzles", e)
+            emit(emptyList())
+        }
+    }
+    override suspend fun renamePuzzle(puzzleId: String, newName: String) {
+        return try {
+            // Get current puzzle
+            val currentPuzzle = puzzleDataSource.getPuzzleById(puzzleId).collect { puzzle ->
+                puzzle?.let { current ->
+                    val updatedPuzzle = current.copy(name = newName)
+                    puzzleDataSource.updatePuzzle(updatedPuzzle)
+                }
+            }
+
+        } catch (e: Exception) {
+            throw Exception("Failed to rename puzzle: ${e.message}")
+        }
+    }
+
+    override suspend fun deletePuzzle(puzzleId: String, imageUrl: String) {
+        try {
+            // Delete puzzle from Supabase
+            puzzleDataSource.deletePuzzle(puzzleId)
+//            Result.success(Unit)
+        } catch (e: Exception) {
+            //Result.failure(e)
+        }
     }
 } 

@@ -12,12 +12,20 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.md.mypuzzleapp.domain.usecase.SavePuzzleProgressUseCase
+import com.md.mypuzzleapp.domain.usecase.GetPuzzleProgressUseCase
+import com.md.mypuzzleapp.domain.model.PuzzleProgress
+import com.md.mypuzzleapp.domain.model.PiecePlacement
+import android.util.Log
 
 @HiltViewModel
 class PuzzleViewModel @Inject constructor(
     private val puzzleManager: PuzzleManager,
+    private val savePuzzleProgressUseCase: SavePuzzleProgressUseCase,
+    private val getPuzzleProgressUseCase: GetPuzzleProgressUseCase,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -60,6 +68,7 @@ class PuzzleViewModel @Inject constructor(
                     isDragging = false
                 )
                 puzzleManager.resetDragState()
+                saveProgress() // Save after drop
                 checkPuzzleCompletion()
             }
             is PuzzleEvent.ReturnPiece -> {
@@ -108,11 +117,28 @@ class PuzzleViewModel @Inject constructor(
                 puzzleManager.loadPuzzle(id).let { result ->
                     result.fold(
                         onSuccess = { puzzleWithPieces ->
-                            state = state.copy(
-                                puzzle = puzzleWithPieces.puzzle,
-                                puzzlePieces = puzzleWithPieces.pieces,
-                                isLoading = false
-                            )
+                            // Try to load progress from Firebase
+                            val progress = getPuzzleProgressUseCase(id).first()
+                            if (progress != null) {
+                                // Map PiecePlacement to PuzzlePiece
+                                val updatedPieces = puzzleWithPieces.pieces.map { piece ->
+                                    progress.piecePlacements[piece.id.toString()]?.let { placement ->
+                                        piece.copy(currentPosition = placement.currentX)
+                                    } ?: piece
+                                }
+                                state = state.copy(
+                                    puzzle = puzzleWithPieces.puzzle,
+                                    puzzlePieces = updatedPieces,
+                                    isLoading = false,
+                                    moves = progress.piecePlacements.size // or store moves in progress if you add it
+                                )
+                            } else {
+                                state = state.copy(
+                                    puzzle = puzzleWithPieces.puzzle,
+                                    puzzlePieces = puzzleWithPieces.pieces,
+                                    isLoading = false
+                                )
+                            }
                         },
                         onFailure = { error ->
                             state = state.copy(isLoading = false)
@@ -141,6 +167,9 @@ class PuzzleViewModel @Inject constructor(
             puzzlePieces = currentPieces,
             moves = state.moves + 1
         )
+
+        // Save progress after move
+        saveProgress()
 
         checkPuzzleCompletion()
     }
@@ -187,6 +216,28 @@ class PuzzleViewModel @Inject constructor(
                 state = state.copy(isLoading = false)
                 _uiEvent.send(UiEvent.ShowSnackbar(e.message ?: "Error restarting puzzle"))
             }
+        }
+    }
+
+    private fun saveProgress() {
+        val puzzle = state.puzzle ?: return
+        val piecePlacements = state.puzzlePieces.associate { piece ->
+            piece.id.toString() to PiecePlacement(
+                pieceId = piece.id,
+                currentX = piece.currentPosition,
+                currentY = 0, // Not used in this puzzle, set to 0 or remove from model if not needed
+                isPlaced = piece.currentPosition == piece.correctPosition
+            )
+        }
+        val progress = PuzzleProgress(
+            puzzleId = puzzle.id,
+            piecePlacements = piecePlacements,
+            startTime = puzzle.createdAt,
+            lastUpdated = System.currentTimeMillis()
+        )
+        Log.d("PuzzleProgress", "Saving progress: $progress")
+        viewModelScope.launch {
+            savePuzzleProgressUseCase(progress)
         }
     }
 } 

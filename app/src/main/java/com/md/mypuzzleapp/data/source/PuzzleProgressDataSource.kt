@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.Flow
 
 /**
  * Interface defining the contract for puzzle progress data operations.
- * This allows for different implementations (Firebase, Room, etc.)
+ * This allows for different implementations (Supabase, Room, etc.)
  */
 interface PuzzleProgressDataSource {
     fun getPuzzleProgress(puzzleId: String): Flow<PuzzleProgress?>

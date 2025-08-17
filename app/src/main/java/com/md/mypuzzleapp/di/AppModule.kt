@@ -1,14 +1,12 @@
 package com.md.mypuzzleapp.di
 
 import android.content.Context
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.storage.FirebaseStorage
 import com.md.mypuzzleapp.data.repository.PuzzleProgressRepositoryImpl
 import com.md.mypuzzleapp.data.repository.PuzzleRepositoryImpl
 import com.md.mypuzzleapp.data.source.PuzzleDataSource
 import com.md.mypuzzleapp.data.source.PuzzleProgressDataSource
-import com.md.mypuzzleapp.data.source.remote.FirebasePuzzleDataSource
-import com.md.mypuzzleapp.data.source.remote.FirebasePuzzleProgressDataSource
+import com.md.mypuzzleapp.data.source.remote.SupabasePuzzleDataSource
+import com.md.mypuzzleapp.data.source.remote.SupabasePuzzleProgressDataSource
 import com.md.mypuzzleapp.domain.repository.PuzzleProgressRepository
 import com.md.mypuzzleapp.domain.repository.PuzzleRepository
 import dagger.Module
@@ -24,30 +22,30 @@ object AppModule {
     
     @Provides
     @Singleton
-    fun provideFirebaseFirestore(): FirebaseFirestore {
-        return FirebaseFirestore.getInstance()
+    fun provideSupabasePuzzleDataSource(@ApplicationContext context: Context): SupabasePuzzleDataSource {
+        return SupabasePuzzleDataSource(context)
     }
     
     @Provides
     @Singleton
-    fun provideFirebaseStorage(): FirebaseStorage {
-        return FirebaseStorage.getInstance()
+    fun provideSupabasePuzzleProgressDataSource(): SupabasePuzzleProgressDataSource {
+        return SupabasePuzzleProgressDataSource()
     }
     
     @Provides
     @Singleton
-    fun provideFirebasePuzzleDataSource(
-        firebasePuzzleDataSource: FirebasePuzzleDataSource
+    fun providePuzzleDataSource(
+        supabasePuzzleDataSource: SupabasePuzzleDataSource
     ): PuzzleDataSource {
-        return firebasePuzzleDataSource
+        return supabasePuzzleDataSource
     }
     
     @Provides
     @Singleton
-    fun provideFirebasePuzzleProgressDataSource(
-        firebasePuzzleProgressDataSource: FirebasePuzzleProgressDataSource
+    fun providePuzzleProgressDataSource(
+        supabasePuzzleProgressDataSource: SupabasePuzzleProgressDataSource
     ): PuzzleProgressDataSource {
-        return firebasePuzzleProgressDataSource
+        return supabasePuzzleProgressDataSource
     }
     
     @Provides
@@ -57,11 +55,20 @@ object AppModule {
     ): PuzzleRepository {
         return puzzleRepositoryImpl
     }
+
+    @Provides
+    @Singleton
+    fun providePuzzleRepositoryImpl(
+        context: Context,
+        puzzleDataSource: PuzzleDataSource
+    ): PuzzleRepositoryImpl {
+        return PuzzleRepositoryImpl(context, puzzleDataSource = puzzleDataSource)
+    }
     
     @Provides
     @Singleton
     fun providePuzzleProgressRepository(
-        puzzleProgressRepositoryImpl: PuzzleProgressRepository
+        puzzleProgressRepositoryImpl: PuzzleProgressRepositoryImpl
     ): PuzzleProgressRepository {
         return puzzleProgressRepositoryImpl
     }

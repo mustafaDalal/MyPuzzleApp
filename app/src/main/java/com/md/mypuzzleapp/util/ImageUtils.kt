@@ -8,6 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
+import java.net.URL
 
 /**
  * Utility class for handling image operations
@@ -55,6 +56,16 @@ object ImageUtils {
         bitmap?.let { 
             createSquareBitmap(it)
         } ?: throw IllegalStateException("Could not load bitmap from URI")
+    }
+    
+    /**
+     * Loads a bitmap from a URL (e.g., Firebase Storage download URL)
+     */
+    suspend fun loadBitmapFromUrl(url: String): Bitmap = withContext(Dispatchers.IO) {
+        val connection = URL(url).openConnection()
+        connection.connect()
+        val inputStream = connection.getInputStream()
+        BitmapFactory.decodeStream(inputStream) ?: throw IllegalStateException("Could not load bitmap from URL")
     }
     
     /**

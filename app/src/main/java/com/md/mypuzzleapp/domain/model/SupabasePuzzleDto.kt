@@ -9,7 +9,7 @@ data class SupabasePuzzleDto(
     @SerialName("name")
     val name: String = "",
     @SerialName("difficulty")
-    val difficulty: Int = 3, // 3=EASY, 4=MEDIUM, 5=HARD
+    val difficulty: Int? = null, // nullable: fallback handled in mapper (default EASY=3)
     @SerialName("image_url")
     val imageUrl: String? = "",
     @SerialName("piece_count")
@@ -50,5 +50,4 @@ data class SupabaseUserDto(
     val deviceId: String = "",
     @SerialName("created_at")
     val createdAt: String = "",
-
 )

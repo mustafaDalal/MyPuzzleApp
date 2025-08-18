@@ -230,12 +230,24 @@ fun PuzzleItem(
         Box(
             modifier = Modifier.fillMaxSize()
         ) {
-            // Puzzle image
+            // Puzzle image (prefer bitmap, fallback to URL)
             if (puzzle.originalImage != null) {
                 Image(
                     painter = rememberAsyncImagePainter(
                         ImageRequest.Builder(LocalContext.current)
                             .data(data = puzzle.originalImage)
+                            .crossfade(true)
+                            .build()
+                    ),
+                    contentDescription = puzzle.name,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            } else if (puzzle.localImageUri != null) {
+                Image(
+                    painter = rememberAsyncImagePainter(
+                        ImageRequest.Builder(LocalContext.current)
+                            .data(data = puzzle.localImageUri)
                             .crossfade(true)
                             .build()
                     ),

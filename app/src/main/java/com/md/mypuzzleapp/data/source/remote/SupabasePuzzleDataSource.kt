@@ -2,7 +2,6 @@ package com.md.mypuzzleapp.data.source.remote
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.util.Log
 import java.io.ByteArrayOutputStream
 import com.md.mypuzzleapp.data.source.PuzzleDataSource
 import com.md.mypuzzleapp.di.SupabaseModule
@@ -14,6 +13,10 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
+import coil.ImageLoader
+import coil.request.ImageRequest
+import coil.request.SuccessResult
+import android.graphics.drawable.BitmapDrawable
 
 class SupabasePuzzleDataSource(private val context: Context) : PuzzleDataSource {
     private val userId: String
@@ -31,7 +34,25 @@ class SupabasePuzzleDataSource(private val context: Context) : PuzzleDataSource 
                     }
                     .decodeList<SupabasePuzzleDto>()
             }
-            emit(response.map { it.toDomain() })
+            val puzzles = withContext(Dispatchers.IO) {
+                response.map { dto ->
+                    val base = dto.toDomain()
+                    val bucket = SupabaseModule.storage.from(BUCKET)
+                    // Prefer existing image_url; else assume .png path
+                    val finalUrl = dto.imageUrl?.takeIf { it.isNotBlank() } ?: run {
+                        val folder = dto.userId ?: userId
+                        val path = "$folder/${dto.id}.png"
+                        bucket.publicUrl(path)
+                    }
+                    val bmp = try { fetchBitmap(finalUrl) } catch (e: Exception) { null }
+                    if (bmp != null) {
+                        base.copy(originalImage = bmp, localImageUri = android.net.Uri.parse(finalUrl))
+                    } else {
+                        base.copy(localImageUri = android.net.Uri.parse(finalUrl))
+                    }
+                }
+            }
+            emit(puzzles)
         } catch (e: Exception) {
             emit(emptyList())
         }
@@ -49,35 +70,54 @@ class SupabasePuzzleDataSource(private val context: Context) : PuzzleDataSource 
                         }
                     }
                     .decodeSingle<SupabasePuzzleDto>()
-
             }
-            emit(response.toDomain())
+            val base = response.toDomain()
+            val bucket = SupabaseModule.storage.from(BUCKET)
+            // Prefer existing image_url; else assume .png path
+            val finalUrl = response.imageUrl?.takeIf { it.isNotBlank() } ?: run {
+                val folder = response.userId ?: userId
+                val path = "$folder/${response.id}.png"
+                bucket.publicUrl(path)
+            }
+            val bmp = try { fetchBitmap(finalUrl) } catch (e: Exception) { null }
+            val result = if (bmp != null) {
+                base.copy(originalImage = bmp, localImageUri = android.net.Uri.parse(finalUrl))
+            } else {
+                base.copy(localImageUri = android.net.Uri.parse(finalUrl))
+            }
+            emit(result)
         } catch (e: Exception) {
             emit(null)
         }
     }
 
+    private suspend fun fetchBitmap(url: String): Bitmap? = withContext(Dispatchers.IO) {
+        val loader = ImageLoader(context)
+        val request = ImageRequest.Builder(context)
+            .data(url)
+            .allowHardware(false) // needed to get a software bitmap
+            .build()
+        val result = loader.execute(request)
+        if (result is SuccessResult) {
+            val drawable = result.drawable
+            (drawable as? BitmapDrawable)?.bitmap
+        } else null
+    }
+
     override suspend fun addPuzzle(puzzle: Puzzle): String = withContext(Dispatchers.IO) {
         try {
-            Log.d("SupabasePuzzleDataSource", "addPuzzle: start id=${puzzle.id} name=${puzzle.name} difficulty=${puzzle.difficulty} pieces=${puzzle.pieces.size}")
-
             // 1) Upload image to Supabase Storage if available
             val imageUrl: String? = puzzle.originalImage?.let { bmp ->
                 val path = "$userId/${puzzle.id}.png"
-                Log.d("SupabasePuzzleDataSource", "addPuzzle: compressing bitmap to PNG for path=$path")
                 val baos = ByteArrayOutputStream()
                 bmp.compress(Bitmap.CompressFormat.PNG, 100, baos)
                 val bytes = baos.toByteArray()
-
-                Log.d("SupabasePuzzleDataSource", "addPuzzle: uploading ${bytes.size} bytes to bucket=$BUCKET path=$path")
                 SupabaseModule.storage
                     .from(BUCKET)
                     .upload(path, bytes, upsert = true)
-
                 val publicUrl = SupabaseModule.storage
                     .from(BUCKET)
                     .publicUrl(path)
-                Log.d("SupabasePuzzleDataSource", "addPuzzle: got publicUrl=$publicUrl")
                 publicUrl
             }
 
@@ -85,7 +125,6 @@ class SupabasePuzzleDataSource(private val context: Context) : PuzzleDataSource 
             val dto = puzzle
                 .toSupabaseDto()
                 .copy(userId = userId, deviceId = userId, imageUrl = imageUrl ?: "")
-            Log.d("SupabasePuzzleDataSource", "addPuzzle: inserting DTO name=${dto.name} pieceCount=${dto.pieceCount} imageUrl='${dto.imageUrl}' userId='${dto.userId}'")
 
             // 3) Insert and return id
             val response = SupabaseModule.database
@@ -93,10 +132,8 @@ class SupabasePuzzleDataSource(private val context: Context) : PuzzleDataSource 
                 .insert(dto){
                     select(columns = Columns.list("id"))
                 }.decodeSingle<InsertedPuzzleId>()
-            Log.d("SupabasePuzzleDataSource", "addPuzzle: insert complete returned id=${response.id}")
             response.id
         } catch (e: Exception) {
-            Log.e("SupabasePuzzleDataSource", "addPuzzle: failed for id=${puzzle.id}", e)
             throw Exception("Failed to add puzzle: ${e.message}")
         }
     }

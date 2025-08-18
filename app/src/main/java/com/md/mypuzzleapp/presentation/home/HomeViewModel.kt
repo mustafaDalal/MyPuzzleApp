@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import android.graphics.BitmapFactory
+import android.util.Log
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
@@ -73,24 +74,33 @@ class HomeViewModel @Inject constructor(
     
     private fun loadPuzzles() {
         viewModelScope.launch {
+            Log.d("HomeViewModel", "loadPuzzles: start")
             state = state.copy(isLoading = true)
             try {
-                // This part of the logic needs to be adapted to use the repository
-                // For now, it's kept as is, but it will cause a compilation error
-                // as HomeManager is removed.
-                // The original code had puzzleRepository.getAllPuzzlesForDevice(context).collectLatest { puzzles ->
-                // This line is removed as per the new_code, as the repository is no longer used.
-                // The HomeManager will now handle fetching puzzles.
                 homeManager.getAllPuzzles().collectLatest { puzzles ->
+                    Log.d("HomeViewModel", "loadPuzzles: received ${puzzles.size} puzzles")
+                    val display = puzzles.filter { it.originalImage != null || it.localImageUri != null }
+                    val filteredOut = puzzles.size - display.size
+                    if (filteredOut > 0) {
+                        Log.d("HomeViewModel", "loadPuzzles: filtered out ${filteredOut} puzzles without image")
+                    }
+                    display.take(3).forEach { p ->
+                        Log.d(
+                            "HomeViewModel",
+                            "showing id=${p.id} name=${p.name} hasBitmap=${p.originalImage != null} uri=${p.localImageUri}"
+                        )
+                    }
                     state = state.copy(
-                        puzzles = puzzles,
+                        puzzles = display,
                         isLoading = false
                     )
                 }
             } catch (e: Exception) {
+                Log.e("HomeViewModel", "loadPuzzles: failed", e)
                 state = state.copy(isLoading = false)
                 // Handle error (e.g., show snackbar)
             }
+            Log.d("HomeViewModel", "loadPuzzles: end isLoading=${state.isLoading} shown=${state.puzzles.size}")
         }
     }
     

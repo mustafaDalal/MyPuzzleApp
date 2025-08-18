@@ -23,7 +23,7 @@ fun Puzzle.toSupabaseDto(): SupabasePuzzleDto = SupabasePuzzleDto(
 fun SupabasePuzzleDto.toDomain(): Puzzle = Puzzle(
     id = id,
     name = name,
-    difficulty = when (difficulty) {
+    difficulty = when (difficulty ?: 3) {
         3 -> PuzzleDifficulty.EASY
         4 -> PuzzleDifficulty.MEDIUM
         5 -> PuzzleDifficulty.HARD
@@ -31,7 +31,7 @@ fun SupabasePuzzleDto.toDomain(): Puzzle = Puzzle(
     },
     pieces = emptyList(), // Will be generated when puzzle is loaded
     originalImage = null, // Will be loaded from imageUrl
-    localImageUri = null,
+    localImageUri = imageUrl?.takeIf { it.isNotBlank() }?.let { Uri.parse(it) },
     createdAt = createdAt.toLongOrNull() ?: System.currentTimeMillis(),
     isCompleted = false,
     moves = 0

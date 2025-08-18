@@ -26,9 +26,7 @@ class PuzzleRepositoryImpl @Inject constructor(
     
     private val puzzles = mutableListOf<Puzzle>()
     
-    override fun getAllPuzzles(): Flow<List<Puzzle>> = flow {
-        emit(puzzles)
-    }
+    override fun getAllPuzzles(): Flow<List<Puzzle>> = puzzleDataSource.getAllPuzzles()
     
     override fun getPuzzleById(id: String): Flow<Puzzle?> = flow {
         emit(puzzles.find { it.id == id })

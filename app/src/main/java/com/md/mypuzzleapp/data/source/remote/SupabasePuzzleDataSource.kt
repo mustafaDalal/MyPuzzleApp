@@ -35,25 +35,22 @@ class SupabasePuzzleDataSource(private val context: Context) : PuzzleDataSource 
                     .decodeList<SupabasePuzzleDto>()
             }
             val puzzles = withContext(Dispatchers.IO) {
-                response.map { dto ->
-                    val base = dto.toDomain()
-                    val bucket = SupabaseModule.storage.from(BUCKET)
-                    // Prefer existing image_url; else assume .png path
-                    val finalUrl = dto.imageUrl?.takeIf { it.isNotBlank() } ?: run {
-                        val folder = dto.userId ?: userId
-                        val path = "$folder/${dto.id}.png"
-                        bucket.publicUrl(path)
+                response
+                    .filter { !it.imageUrl.isNullOrBlank() }
+                    .map { dto ->
+                        val base = dto.toDomain()
+                        val finalUrl = dto.imageUrl!!
+                        val bmp = try { fetchBitmap(finalUrl) } catch (e: Exception) { null }
+                        if (bmp != null) {
+                            base.copy(originalImage = bmp, localImageUri = android.net.Uri.parse(finalUrl))
+                        } else {
+                            base.copy(localImageUri = android.net.Uri.parse(finalUrl))
+                        }
                     }
-                    val bmp = try { fetchBitmap(finalUrl) } catch (e: Exception) { null }
-                    if (bmp != null) {
-                        base.copy(originalImage = bmp, localImageUri = android.net.Uri.parse(finalUrl))
-                    } else {
-                        base.copy(localImageUri = android.net.Uri.parse(finalUrl))
-                    }
-                }
             }
             emit(puzzles)
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             emit(emptyList())
         }
     }
@@ -87,6 +84,7 @@ class SupabasePuzzleDataSource(private val context: Context) : PuzzleDataSource 
             }
             emit(result)
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             emit(null)
         }
     }

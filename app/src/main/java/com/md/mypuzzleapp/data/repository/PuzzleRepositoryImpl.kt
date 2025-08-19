@@ -28,9 +28,7 @@ class PuzzleRepositoryImpl @Inject constructor(
     
     override fun getAllPuzzles(): Flow<List<Puzzle>> = puzzleDataSource.getAllPuzzles()
     
-    override fun getPuzzleById(id: String): Flow<Puzzle?> = flow {
-        emit(puzzles.find { it.id == id })
-    }
+    override fun getPuzzleById(id: String): Flow<Puzzle?> = puzzleDataSource.getPuzzleById(id)
     
     override suspend fun addPuzzle(puzzle: Puzzle): String {
         puzzles.add(puzzle)
@@ -153,6 +151,7 @@ class PuzzleRepositoryImpl @Inject constructor(
                 emit(puzzleList)
             }
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             Log.e("SupabasePuzzleRead", "Failed to get puzzles", e)
             emit(emptyList())
         }

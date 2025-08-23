@@ -58,7 +58,8 @@ class HomeManager @Inject constructor(
                 val progress = PuzzleProgress(
                     puzzleId = puzzle.id,
                     piecePlacements = piecePlacements,
-                    startTime = System.currentTimeMillis()
+                    startTime = System.currentTimeMillis(),
+                    moves = 0
                 )
                 Log.d("PuzzleProgress", "Saving initial progress: $progress")
                 

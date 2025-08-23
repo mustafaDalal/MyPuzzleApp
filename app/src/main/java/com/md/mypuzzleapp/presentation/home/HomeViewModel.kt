@@ -17,9 +17,12 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import android.graphics.BitmapFactory
 import android.util.Log
+import kotlinx.coroutines.Dispatchers
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
@@ -30,6 +33,8 @@ class HomeViewModel @Inject constructor(
     var state by mutableStateOf(HomeState())
         private set
     
+    private var loadJob: Job? = null
+
     private val _uiEvent = Channel<UiEvent>()
     val uiEvent = _uiEvent.receiveAsFlow()
     
@@ -73,9 +78,12 @@ class HomeViewModel @Inject constructor(
     }
     
     private fun loadPuzzles() {
-        viewModelScope.launch {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch(Dispatchers.IO) {
             Log.d("HomeViewModel", "loadPuzzles: start")
-            state = state.copy(isLoading = true)
+            withContext(Dispatchers.Main) {
+                state = state.copy(isLoading = true)
+            }
             try {
                 homeManager.getAllPuzzles().collectLatest { puzzles ->
                     Log.d("HomeViewModel", "loadPuzzles: received ${puzzles.size} puzzles")
@@ -90,14 +98,18 @@ class HomeViewModel @Inject constructor(
                             "showing id=${p.id} name=${p.name} hasBitmap=${p.originalImage != null} uri=${p.localImageUri}"
                         )
                     }
-                    state = state.copy(
+                    withContext(Dispatchers.Main){state = state.copy(
                         puzzles = display,
                         isLoading = false
                     )
+
+                    }
                 }
             } catch (e: Exception) {
                 Log.e("HomeViewModel", "loadPuzzles: failed", e)
-                state = state.copy(isLoading = false)
+                withContext(Dispatchers.Main) {
+                    state = state.copy(isLoading = false)
+                }
                 // Handle error (e.g., show snackbar)
             }
             Log.d("HomeViewModel", "loadPuzzles: end isLoading=${state.isLoading} shown=${state.puzzles.size}")
@@ -106,10 +118,13 @@ class HomeViewModel @Inject constructor(
     
     private fun uploadImage(uri: Uri) {
         viewModelScope.launch {
-            state = state.copy(isLoading = true)
+            // Dismiss dialog immediately to avoid overlay issues and show loading state in main UI
+            state = state.copy(isLoading = true, isUploadDialogVisible = false)
             try {
-                // Load bitmap from URI
-                val bitmap = BitmapFactory.decodeStream(context.contentResolver.openInputStream(uri))
+                // Load bitmap from URI off the main thread
+                val bitmap = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    BitmapFactory.decodeStream(context.contentResolver.openInputStream(uri))
+                }
                 val result = homeManager.createPuzzleWithImage(
                     name = state.uploadImageName,
                     difficulty = state.selectedDifficulty.name, // Store as String
@@ -125,15 +140,21 @@ class HomeViewModel @Inject constructor(
                         selectedDifficulty = PuzzleDifficulty.EASY
                     )
                     if (puzzle != null) {
+                        // Optimistically add to grid so it appears instantly
+                        state = state.copy(puzzles = listOf(puzzle) + state.puzzles)
+                        // Refresh list so Home reflects the newly created puzzle when user returns
+                        loadPuzzles()
                         _uiEvent.send(UiEvent.Navigate("puzzle/${puzzle.id}"))
                         _uiEvent.send(UiEvent.ShowSnackbar("Puzzle created successfully"))
                     }
                 } else {
-                    state = state.copy(isLoading = false)
+                    // Dismiss the dialog on failure as well so the snackbar is visible
+                    state = state.copy(isLoading = false, isUploadDialogVisible = false)
                     _uiEvent.send(UiEvent.ShowSnackbar(result.exceptionOrNull()?.message ?: "Error creating puzzle"))
                 }
             } catch (e: Exception) {
-                state = state.copy(isLoading = false)
+                // Dismiss the dialog on unexpected errors
+                state = state.copy(isLoading = false, isUploadDialogVisible = false)
                 _uiEvent.send(UiEvent.ShowSnackbar(e.message ?: "Error creating puzzle"))
             }
         }
@@ -155,6 +176,8 @@ class HomeViewModel @Inject constructor(
                             uploadImageName = "",
                             selectedDifficulty = PuzzleDifficulty.EASY
                         )
+                        // Refresh list so Home reflects the newly fetched puzzle
+                        loadPuzzles()
                         _uiEvent.send(UiEvent.ShowSnackbar("Random puzzle created successfully"))
                     },
                     onFailure = { error ->

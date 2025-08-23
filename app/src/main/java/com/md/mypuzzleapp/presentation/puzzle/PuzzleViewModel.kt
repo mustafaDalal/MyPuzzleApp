@@ -11,6 +11,7 @@ import com.md.mypuzzleapp.presentation.common.UiEvent
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -41,8 +42,35 @@ class PuzzleViewModel @Inject constructor(
 
     private val puzzleId: String = checkNotNull(savedStateHandle["puzzleId"])
 
+    // Hybrid save strategy state
+    private var isDirty: Boolean = false
+    private var saveJob: Job? = null
+
     init {
         loadPuzzle(puzzleId)
+    }
+
+    override fun onCleared() {
+        // Best-effort flush on ViewModel clear
+        if (isDirty) {
+            // Fire-and-forget immediate save
+            saveProgress()
+            isDirty = false
+        }
+        super.onCleared()
+    }
+
+    private fun markDirtyAndScheduleSave() {
+        isDirty = true
+        // Debounce rapid interactions
+        saveJob?.cancel()
+        saveJob = viewModelScope.launch {
+            delay(600) // coalesce quick moves/drops
+            if (isDirty) {
+                saveProgress()
+                isDirty = false
+            }
+        }
     }
 
     fun onEvent(event: PuzzleEvent) {
@@ -68,11 +96,13 @@ class PuzzleViewModel @Inject constructor(
                     isDragging = false
                 )
                 puzzleManager.resetDragState()
-                saveProgress() // Save after drop
+                markDirtyAndScheduleSave()
                 checkPuzzleCompletion()
             }
             is PuzzleEvent.ReturnPiece -> {
                 puzzleManager.handlePieceReturn(event.piece, event.position)
+                // Persist unplacement via hybrid saver
+                markDirtyAndScheduleSave()
             }
             PuzzleEvent.NavigateBack -> {
                 viewModelScope.launch {
@@ -101,6 +131,8 @@ class PuzzleViewModel @Inject constructor(
                         if (!placedPieces.value.values.any { it.id == piece.id }) {
                             if (!unplacedPieces.value.any { it.id == piece.id }) {
                                 puzzleManager.handlePieceReturn(piece, -1)
+                                // Persist auto-unplacement
+                                markDirtyAndScheduleSave()
                             }
                         }
                     }
@@ -117,20 +149,35 @@ class PuzzleViewModel @Inject constructor(
                 puzzleManager.loadPuzzle(id).let { result ->
                     result.fold(
                         onSuccess = { puzzleWithPieces ->
-                            // Try to load progress from Firebase
+                            // Try to load progress from Supabase and apply to manager
                             val progress = getPuzzleProgressUseCase(id).first()
                             if (progress != null) {
-                                // Map PiecePlacement to PuzzlePiece
+
+                                Log.d("Mustafa Debug", "progress ${progress.piecePlacements}")
+                                val progressMap = progress.piecePlacements
+                                // Update pieces only for those present in saved map (treat missing as unplaced)
                                 val updatedPieces = puzzleWithPieces.pieces.map { piece ->
-                                    progress.piecePlacements[piece.id.toString()]?.let { placement ->
+                                    progressMap[piece.id.toString()]?.let { placement ->
                                         piece.copy(currentPosition = placement.currentX)
-                                    } ?: piece
+                                    } ?: piece.copy(currentPosition = piece.id) // ensure unplaced keeps default
                                 }
+                                // Split into placed (from progress) and unplaced (not in progress)
+                                val placedByPosition: Map<Int, com.md.mypuzzleapp.presentation.puzzle.PuzzlePiece> = progressMap.values
+                                    .mapNotNull { placement ->
+                                        val piece = updatedPieces.find { it.id == placement.pieceId }
+                                        piece?.let { placement.currentX to it }
+                                    }
+                                    .toMap()
+                                val unplacedList = updatedPieces.filter { piece -> progressMap[piece.id.toString()] == null }
+
+                                // Hydrate manager with explicit placed/unplaced
+                                puzzleManager.applyRestoredState(placedByPosition, unplacedList)
+
                                 state = state.copy(
                                     puzzle = puzzleWithPieces.puzzle,
                                     puzzlePieces = updatedPieces,
                                     isLoading = false,
-                                    moves = progress.piecePlacements.size // or store moves in progress if you add it
+                                    moves = progress.moves
                                 )
                             } else {
                                 state = state.copy(
@@ -168,8 +215,8 @@ class PuzzleViewModel @Inject constructor(
             moves = state.moves + 1
         )
 
-        // Save progress after move
-        saveProgress()
+        // Debounced save after move
+        markDirtyAndScheduleSave()
 
         checkPuzzleCompletion()
     }
@@ -221,17 +268,20 @@ class PuzzleViewModel @Inject constructor(
 
     private fun saveProgress() {
         val puzzle = state.puzzle ?: return
-        val piecePlacements = state.puzzlePieces.associate { piece ->
+        // Save only pieces currently on the board (placed)
+        val placedNow = placedPieces.value
+        val piecePlacements = placedNow.entries.associate { (position, piece) ->
             piece.id.toString() to PiecePlacement(
                 pieceId = piece.id,
-                currentX = piece.currentPosition,
-                currentY = 0, // Not used in this puzzle, set to 0 or remove from model if not needed
-                isPlaced = piece.currentPosition == piece.correctPosition
+                currentX = position, // use the actual board position key
+                currentY = 0, // Not used in this puzzle
+                isPlaced = position == piece.correctPosition
             )
         }
         val progress = PuzzleProgress(
             puzzleId = puzzle.id,
             piecePlacements = piecePlacements,
+            moves = state.moves,
             startTime = puzzle.createdAt,
             lastUpdated = System.currentTimeMillis()
         )

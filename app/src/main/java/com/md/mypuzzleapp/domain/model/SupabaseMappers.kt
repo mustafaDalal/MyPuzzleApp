@@ -3,6 +3,7 @@ package com.md.mypuzzleapp.domain.model
 import android.graphics.Bitmap
 import android.net.Uri
 import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import kotlinx.serialization.Serializable
 import java.util.UUID
 
@@ -40,7 +41,7 @@ fun SupabasePuzzleDto.toDomain(): Puzzle = Puzzle(
 fun PuzzleProgress.toSupabaseDto(): SupabasePuzzleProgressDto = SupabasePuzzleProgressDto(
     id = UUID.randomUUID().toString(),
     puzzleId = puzzleId,
-    userId = "", // TODO: Set when user authentication is implemented
+    moves = moves,
     completedPieces = piecePlacements.values.count { it.isPlaced },
     totalPieces = piecePlacements.size,
     isCompleted = piecePlacements.values.all { it.isPlaced },
@@ -51,10 +52,12 @@ fun PuzzleProgress.toSupabaseDto(): SupabasePuzzleProgressDto = SupabasePuzzlePr
 fun SupabasePuzzleProgressDto.toDomain(): PuzzleProgress = PuzzleProgress(
     puzzleId = puzzleId,
     piecePlacements = try {
-        Gson().fromJson(piecePlacements, Map::class.java) as? Map<String, PiecePlacement> ?: emptyMap()
+        val type = object : TypeToken<Map<String, PiecePlacement>>() {}.type
+        Gson().fromJson<Map<String, PiecePlacement>>(piecePlacements, type) ?: emptyMap()
     } catch (e: Exception) {
         emptyMap()
     },
+    moves = moves,
     startTime = lastPlayed.toLongOrNull() ?: System.currentTimeMillis(),
     lastUpdated = lastPlayed.toLongOrNull() ?: System.currentTimeMillis()
 )

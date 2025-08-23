@@ -31,6 +31,8 @@ data class SupabasePuzzleProgressDto(
     val puzzleId: String = "",
     @SerialName("user_id")
     val userId: String = "",
+    @SerialName("moves")
+    val moves: Int = 0,
     @SerialName("completed_pieces")
     val completedPieces: Int = 0,
     @SerialName("total_pieces")

@@ -130,4 +130,14 @@ class PuzzleManager @Inject constructor(
     fun getDraggedPiece(): PuzzlePiece? = currentlyDraggedPiece
 
     fun getDragStartTime(): Long = dragStartTime
-} 
+
+    // Hydrate internal state with explicit placed map (position -> piece) and unplaced list
+    fun applyRestoredState(placed: Map<Int, PuzzlePiece>, unplaced: List<PuzzlePiece>) {
+        _placedPieces.value = placed
+        _unplacedPieces.value = unplaced
+        _correctlyPlacedPieces.value = placed.values
+            .filter { it.currentPosition == it.correctPosition }
+            .map { it.id }
+            .toSet()
+    }
+}

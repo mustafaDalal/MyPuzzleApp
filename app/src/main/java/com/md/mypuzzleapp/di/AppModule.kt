@@ -28,8 +28,8 @@ object AppModule {
     
     @Provides
     @Singleton
-    fun provideSupabasePuzzleProgressDataSource(): SupabasePuzzleProgressDataSource {
-        return SupabasePuzzleProgressDataSource()
+    fun provideSupabasePuzzleProgressDataSource(@ApplicationContext context: Context): SupabasePuzzleProgressDataSource {
+        return SupabasePuzzleProgressDataSource(context)
     }
     
     @Provides

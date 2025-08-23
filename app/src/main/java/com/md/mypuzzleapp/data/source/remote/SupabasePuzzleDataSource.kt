@@ -37,16 +37,8 @@ class SupabasePuzzleDataSource(private val context: Context) : PuzzleDataSource 
             val puzzles = withContext(Dispatchers.IO) {
                 response
                     .filter { !it.imageUrl.isNullOrBlank() }
-                    .map { dto ->
-                        val base = dto.toDomain()
-                        val finalUrl = dto.imageUrl!!
-                        val bmp = try { fetchBitmap(finalUrl) } catch (e: Exception) { null }
-                        if (bmp != null) {
-                            base.copy(originalImage = bmp, localImageUri = android.net.Uri.parse(finalUrl))
-                        } else {
-                            base.copy(localImageUri = android.net.Uri.parse(finalUrl))
-                        }
-                    }
+                    .map { dto -> dto.toDomain() }
+                    .sortedByDescending { it.createdAt }
             }
             emit(puzzles)
         } catch (e: Exception) {
@@ -184,7 +176,9 @@ class SupabasePuzzleDataSource(private val context: Context) : PuzzleDataSource 
                     filter { eq("user_id", "default") }
                 }
                 .decodeList<SupabasePuzzleDto>()
-            response.map { it.toDomain() }
+            response
+                .map { it.toDomain() }
+                .sortedByDescending { it.createdAt }
         } catch (e: Exception) {
             emptyList()
         }

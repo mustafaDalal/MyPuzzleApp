@@ -1,7 +1,6 @@
 package com.md.mypuzzleapp.data.repository
 
 import com.md.mypuzzleapp.data.source.PuzzleProgressDataSource
-import com.md.mypuzzleapp.domain.model.PiecePlacement
 import com.md.mypuzzleapp.domain.model.PuzzleProgress
 import com.md.mypuzzleapp.domain.repository.PuzzleProgressRepository
 import kotlinx.coroutines.flow.Flow
@@ -21,11 +20,7 @@ class PuzzleProgressRepositoryImpl @Inject constructor(
         puzzleProgressDataSource.savePuzzleProgress(puzzleProgress)
     }
     
-    override suspend fun updatePiecePlacement(puzzleId: String, piecePlacement: PiecePlacement) {
-        puzzleProgressDataSource.updatePiecePlacement(puzzleId, piecePlacement)
-    }
-    
     override suspend fun deletePuzzleProgress(puzzleId: String) {
         puzzleProgressDataSource.deletePuzzleProgress(puzzleId)
     }
-} 
+}

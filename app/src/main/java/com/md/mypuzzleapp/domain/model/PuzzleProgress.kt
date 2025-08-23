@@ -8,6 +8,7 @@ package com.md.mypuzzleapp.domain.model
 data class PuzzleProgress(
     val puzzleId: String,
     val piecePlacements: Map<String, PiecePlacement>,
+    val moves: Int,
     val startTime: Long,
     val lastUpdated: Long = System.currentTimeMillis()
 )

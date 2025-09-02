@@ -56,6 +56,7 @@ import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.md.mypuzzleapp.domain.model.Puzzle
 import com.md.mypuzzleapp.presentation.common.UiEvent
+import com.md.mypuzzleapp.ui.theme.LocalExtendedColors
 import kotlinx.coroutines.flow.collectLatest
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -66,6 +67,7 @@ fun HomeScreen(
 ) {
     val state = viewModel.state
     val snackbarHostState = remember { SnackbarHostState() }
+    val ext = LocalExtendedColors.current
     
     LaunchedEffect(key1 = true) {
         viewModel.uiEvent.collectLatest { event ->
@@ -84,10 +86,12 @@ fun HomeScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Puzzle Gallery") },
+                title = { Text("Puzzle Gallery", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    containerColor = ext.primaryBackground,
+                    titleContentColor = ext.onPrimaryBackground,
+                    navigationIconContentColor = ext.onPrimaryBackground,
+                    actionIconContentColor = ext.onPrimaryBackground
                 )
             )
         },
@@ -99,8 +103,8 @@ fun HomeScreen(
                 // Random Image FAB
                 FloatingActionButton(
                     onClick = { viewModel.onEvent(HomeEvent.FetchRandomImage) },
-                    containerColor = MaterialTheme.colorScheme.secondary,
-                    contentColor = MaterialTheme.colorScheme.onSecondary,
+                    containerColor = ext.secondaryBackground,
+                    contentColor = ext.onSecondaryBackground,
                     elevation = FloatingActionButtonDefaults.elevation()
                 ) {
                     Icon(
@@ -112,8 +116,8 @@ fun HomeScreen(
                 // Upload Image FAB
                 FloatingActionButton(
                     onClick = { viewModel.onEvent(HomeEvent.ShowUploadDialog) },
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    containerColor = ext.fabBackground,
+                    contentColor = ext.onFabBackground,
                     elevation = FloatingActionButtonDefaults.elevation()
                 ) {
                     Icon(
@@ -123,7 +127,8 @@ fun HomeScreen(
                 }
             }
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
         HomeContent(
             puzzles = state.puzzles,
@@ -186,13 +191,17 @@ fun HomeContent(
                 Text(
                     text = "No puzzles available",
                     style = MaterialTheme.typography.headlineSmall,
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "Tap the + button to upload an image and create a new puzzle",
                     style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         } else {
@@ -219,13 +228,18 @@ fun PuzzleItem(
     puzzle: Puzzle,
     onClick: () -> Unit
 ) {
+    val ext = LocalExtendedColors.current
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .aspectRatio(1f)
             .clickable(onClick = onClick),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        shape = RoundedCornerShape(12.dp)
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = ext.cardBackground,
+            contentColor = ext.onCardBackground
+        )
     ) {
         Box(
             modifier = Modifier.fillMaxSize()
@@ -265,7 +279,9 @@ fun PuzzleItem(
                     Text(
                         text = puzzle.name.take(2).uppercase(),
                         style = MaterialTheme.typography.headlineLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
@@ -317,18 +333,22 @@ fun PuzzleItem(
                     ) {
                         Text(
                             text = puzzle.difficulty.name,
-                            style = MaterialTheme.typography.bodySmall
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         
                         Spacer(modifier = Modifier.width(8.dp))
                         
                         Text(
                             text = "${puzzle.difficulty.gridSize}x${puzzle.difficulty.gridSize}",
-                            style = MaterialTheme.typography.bodySmall
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
             }
         }
     }
-} 
+}

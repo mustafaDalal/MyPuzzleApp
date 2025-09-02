@@ -29,8 +29,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Rect
+ 
+ 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -38,12 +39,16 @@ import androidx.compose.ui.layout.boundsInParent
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.md.mypuzzleapp.presentation.common.UiEvent
+import com.md.mypuzzleapp.ui.theme.LocalExtendedColors
 import kotlinx.coroutines.launch
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.unit.Dp
+ 
 
 data class CellBounds(
     val position: Int,
@@ -77,15 +82,23 @@ fun PuzzleScreen(
         }
     }
     
+    val ext = LocalExtendedColors.current
+    
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { 
                     Column {
-                        Text(state.puzzle?.name ?: "")
+                        Text(
+                            state.puzzle?.name ?: "",
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                         Text(
                             text = "Moves: ${state.moves}",
-                            style = MaterialTheme.typography.bodyMedium
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 },
@@ -101,18 +114,29 @@ fun PuzzleScreen(
                     IconButton(onClick = { viewModel.onEvent(PuzzleEvent.RestartPuzzle) }) {
                         Icon(Icons.Default.Refresh, "Restart")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = ext.primaryBackground,
+                    titleContentColor = ext.onPrimaryBackground,
+                    navigationIconContentColor = ext.onPrimaryBackground,
+                    actionIconContentColor = ext.onPrimaryBackground
+                )
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .background(MaterialTheme.colorScheme.surface)
         ) {
             if (state.isLoading) {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                CircularProgressIndicator(
+                    modifier = Modifier.align(Alignment.Center),
+                    color = MaterialTheme.colorScheme.primary
+                )
             } else {
                 Column(
                     modifier = Modifier
@@ -137,33 +161,43 @@ fun PuzzleScreen(
                             }
                         } else {
                             val gridSize = state.puzzle?.difficulty?.gridSize ?: return@Box
-                            LazyVerticalGrid(
-                                columns = GridCells.Fixed(gridSize),
-                                modifier = Modifier.fillMaxSize(),
-                                horizontalArrangement = Arrangement.spacedBy(2.dp),
-                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                            Box(
+                                modifier = Modifier.fillMaxSize()
                             ) {
-                                items(gridSize * gridSize) { position ->
-                                    val placedPiece = placedPieces[position]
-                                    PuzzleDropTarget(
-                                        position = position,
-                                        onDrop = { droppedPieceId ->
-                                            viewModel.onEvent(PuzzleEvent.DropPiece(droppedPieceId, position))
+                                LazyVerticalGrid(
+                                    columns = GridCells.Fixed(gridSize),
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .border(0.5.dp, MaterialTheme.colorScheme.outline),
+                                    horizontalArrangement = Arrangement.spacedBy(0.dp),
+                                    verticalArrangement = Arrangement.spacedBy(0.dp)
+                                ) {
+                                    items(gridSize * gridSize) { position ->
+                                        val placedPiece = placedPieces[position]
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                // Remove individual borders to prevent doubling up
+                                        ) {
+                                            PuzzleDropTarget(
+                                                position = position,
+                                                onDrop = { droppedPieceId ->
+                                                    viewModel.onEvent(PuzzleEvent.DropPiece(droppedPieceId, position))
+                                                }
+                                            ) { isInBound ->
+                                                PuzzleCell(
+                                                    piece = placedPiece,
+                                                    isDropTarget = isInBound,
+                                                    onPositioned = { pos, rect ->
+                                                        cellBounds[pos] = CellBounds(pos, rect)
+                                                    },
+                                                    onReturnPiece = { piece ->
+                                                        viewModel.onEvent(PuzzleEvent.ReturnPiece(piece, position))
+                                                    },
+                                                    isCorrectlyPlaced = correctlyPlacedPieces.contains(position)
+                                                )
+                                            }
                                         }
-                                    ) { isInBound ->
-                                        PuzzleCell(
-                                            piece = placedPiece,
-                                            isDropTarget = isInBound,
-                                            onPositioned = { pos, bounds ->
-                                                cellBounds[pos] = CellBounds(pos, bounds)
-                                            },
-                                            onReturnPiece = { piece ->
-                                                viewModel.onEvent(PuzzleEvent.ReturnPiece(piece, position))
-                                            },
-                                            isCorrectlyPlaced = placedPiece?.let { 
-                                                correctlyPlacedPieces.contains(it.id) 
-                                            } ?: false
-                                        )
                                     }
                                 }
                             }
@@ -367,6 +401,8 @@ fun DraggablePuzzlePiece(
         }
     }
     
+    val ext = LocalExtendedColors.current
+    
     Box(
         modifier = Modifier
             .size(100.dp)
@@ -387,7 +423,8 @@ fun DraggablePuzzlePiece(
             contentDescription = "Puzzle piece ${piece.id}",
             modifier = Modifier
                 .fillMaxSize()
-                .alpha(alpha.value)
+                .alpha(alpha.value),
+            contentScale = ContentScale.FillBounds
         )
         
         // Android View for drag handling
@@ -580,6 +617,8 @@ private fun PuzzleCell(
         }
     }
     
+    val ext = LocalExtendedColors.current
+    
     Box(
         modifier = Modifier
             .aspectRatio(1f)
@@ -587,12 +626,13 @@ private fun PuzzleCell(
                 scaleX = scale.value
                 scaleY = scale.value
             }
+            .background(ext.tileBackground)
             .border(
-                width = if (isDropTarget) 2.dp else 1.dp,
+                width = 0.5.dp,
                 color = when {
-                    isCorrectlyPlaced -> Color.Green
+                    isCorrectlyPlaced -> MaterialTheme.colorScheme.tertiary
                     isDropTarget -> MaterialTheme.colorScheme.primary
-                    else -> Color.Gray
+                    else -> MaterialTheme.colorScheme.outline
                 }
             )
             .onGloballyPositioned { coordinates ->
@@ -620,7 +660,8 @@ private fun PuzzleCell(
                             Image(
                                 bitmap = puzzlePiece.bitmap.asImageBitmap(),
                                 contentDescription = "Puzzle piece ${puzzlePiece.id}",
-                                modifier = Modifier.fillMaxSize()
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.FillBounds
                             )
                         }
                     }.also { view.addView(it) }
@@ -655,10 +696,16 @@ fun UnplacedPiecesRow(
         isScrolling = scrollState.isScrollInProgress
     }
     
+    val ext = LocalExtendedColors.current
+    
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(120.dp)
+            .height(120.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = ext.cardBackground,
+            contentColor = ext.onCardBackground
+        )
     ) {
         LazyRow(
             state = scrollState,
@@ -683,4 +730,4 @@ fun UnplacedPiecesRow(
             }
         }
     }
-} 
+}

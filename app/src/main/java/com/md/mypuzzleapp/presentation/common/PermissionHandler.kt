@@ -17,6 +17,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 
@@ -75,8 +76,8 @@ fun PermissionHandler(
                 showRationale = false
                 onPermissionResult(false)
             },
-            title = { Text("Permission Required") },
-            text = { Text(rationale) },
+            title = { Text("Permission Required", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+            text = { Text(rationale, maxLines = 1, overflow = TextOverflow.Ellipsis) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -84,7 +85,7 @@ fun PermissionHandler(
                         requestPermissionLauncher.launch(permission)
                     }
                 ) {
-                    Text("Grant Permission")
+                    Text("Grant Permission", maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             },
             dismissButton = {
@@ -94,7 +95,7 @@ fun PermissionHandler(
                         onPermissionResult(false)
                     }
                 ) {
-                    Text("Cancel")
+                    Text("Cancel", maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
         )

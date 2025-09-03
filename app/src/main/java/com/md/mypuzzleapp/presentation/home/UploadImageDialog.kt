@@ -40,6 +40,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.rememberAsyncImagePainter
@@ -72,7 +73,9 @@ fun UploadImageDialog(
             Text(
                 text = "Upload Custom Puzzle",
                 style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         },
         text = {
@@ -119,7 +122,9 @@ fun UploadImageDialog(
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
                                 text = "Tap to select an image",
-                                style = MaterialTheme.typography.bodyMedium
+                                style = MaterialTheme.typography.bodyMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             TextButton(
@@ -133,7 +138,7 @@ fun UploadImageDialog(
                                     contentDescription = "Get Random Image"
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Get Random Image")
+                                Text("Get Random Image", maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
                         }
                     }
@@ -145,7 +150,7 @@ fun UploadImageDialog(
                 OutlinedTextField(
                     value = imageName,
                     onValueChange = onNameChanged,
-                    label = { Text("Puzzle Name") },
+                    label = { Text("Puzzle Name", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
@@ -159,7 +164,7 @@ fun UploadImageDialog(
                     OutlinedTextField(
                         value = selectedDifficulty.name,
                         onValueChange = {},
-                        label = { Text("Difficulty") },
+                        label = { Text("Difficulty", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { showDifficultyDropdown = true },
@@ -175,7 +180,9 @@ fun UploadImageDialog(
                             DropdownMenuItem(
                                 text = { 
                                     Text(
-                                        text = "${difficulty.name} (${difficulty.gridSize}x${difficulty.gridSize})"
+                                        text = "${difficulty.name} (${difficulty.gridSize}x${difficulty.gridSize})",
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
                                     ) 
                                 },
                                 onClick = {
@@ -203,7 +210,7 @@ fun UploadImageDialog(
                 },
                 enabled = selectedImageUri != null && imageName.isNotBlank() && !isLoading
             ) {
-                Text("Upload")
+                Text("Upload", maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         },
         dismissButton = {
@@ -211,7 +218,7 @@ fun UploadImageDialog(
                 onClick = onDismiss,
                 enabled = !isLoading
             ) {
-                Text("Cancel")
+                Text("Cancel", maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
     )

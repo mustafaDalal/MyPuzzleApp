@@ -18,8 +18,6 @@ data class SupabasePuzzleDto(
     val createdAt: String = "",
     @SerialName("user_id")
     val userId: String? = null,
-    @SerialName("device_id")
-    val deviceId: String? = null,
 
 
 )

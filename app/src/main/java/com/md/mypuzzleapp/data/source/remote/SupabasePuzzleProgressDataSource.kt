@@ -1,23 +1,22 @@
 package com.md.mypuzzleapp.data.source.remote
 
 import android.content.Context
+import com.md.mypuzzleapp.data.local.UserPreferences
 import com.md.mypuzzleapp.data.source.PuzzleProgressDataSource
 import com.md.mypuzzleapp.domain.model.PuzzleProgress
 import com.md.mypuzzleapp.domain.model.SupabasePuzzleProgressDto
 import com.md.mypuzzleapp.domain.model.toSupabaseDto
 import com.md.mypuzzleapp.domain.model.toDomain
 import com.md.mypuzzleapp.di.SupabaseModule
-import com.md.mypuzzleapp.util.DeviceIdUtil
 import io.github.jan.supabase.postgrest.query.Columns
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.withContext
 
-class SupabasePuzzleProgressDataSource(private val context: Context) : PuzzleProgressDataSource {
+class SupabasePuzzleProgressDataSource(private val context: Context, private val userPreferences: UserPreferences) : PuzzleProgressDataSource {
 
-    private val userId: String
-        get() = DeviceIdUtil.getDeviceId(context = context)
     override fun getPuzzleProgress(puzzleId: String): Flow<PuzzleProgress?> = flow {
         try {
             val latest = withContext(Dispatchers.IO) {
@@ -26,7 +25,7 @@ class SupabasePuzzleProgressDataSource(private val context: Context) : PuzzlePro
                     .select(columns = Columns.list("id", "puzzle_id", "user_id", "moves", "completed_pieces", "total_pieces", "is_completed", "last_played", "piece_placements")) {
                         filter {
                             eq("puzzle_id", puzzleId)
-                            eq("user_id", userId)
+                            eq("user_id", userPreferences.hashedEmail.firstOrNull() ?: "")
                         }
                     }
                     .decodeList<SupabasePuzzleProgressDto>()
@@ -44,7 +43,7 @@ class SupabasePuzzleProgressDataSource(private val context: Context) : PuzzlePro
 
     override suspend fun savePuzzleProgress(puzzleProgress: PuzzleProgress) = withContext(Dispatchers.IO) {
         try {
-            val progressDto = puzzleProgress.toSupabaseDto().copy(userId = userId)
+            val progressDto = puzzleProgress.toSupabaseDto().copy(userId = userPreferences.hashedEmail.firstOrNull() ?: "")
             SupabaseModule.database
                 .from("puzzle_progress")
                 .upsert(

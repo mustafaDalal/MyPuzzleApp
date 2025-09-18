@@ -1,6 +1,7 @@
 package com.md.mypuzzleapp.di
 
 import android.content.Context
+import com.md.mypuzzleapp.data.local.UserPreferences
 import com.md.mypuzzleapp.data.repository.PuzzleProgressRepositoryImpl
 import com.md.mypuzzleapp.data.repository.PuzzleRepositoryImpl
 import com.md.mypuzzleapp.data.source.PuzzleDataSource
@@ -22,14 +23,14 @@ object AppModule {
     
     @Provides
     @Singleton
-    fun provideSupabasePuzzleDataSource(@ApplicationContext context: Context): SupabasePuzzleDataSource {
-        return SupabasePuzzleDataSource(context)
+    fun provideSupabasePuzzleDataSource(@ApplicationContext context: Context, userPreferences : UserPreferences): SupabasePuzzleDataSource {
+        return SupabasePuzzleDataSource(context, userPreferences)
     }
     
     @Provides
     @Singleton
-    fun provideSupabasePuzzleProgressDataSource(@ApplicationContext context: Context): SupabasePuzzleProgressDataSource {
-        return SupabasePuzzleProgressDataSource(context)
+    fun provideSupabasePuzzleProgressDataSource(@ApplicationContext context: Context, userPreferences: UserPreferences): SupabasePuzzleProgressDataSource {
+        return SupabasePuzzleProgressDataSource(context, userPreferences)
     }
     
     @Provides
@@ -77,5 +78,11 @@ object AppModule {
     @Singleton
     fun providesContext(@ApplicationContext context: Context): Context {
         return context
+    }
+
+    @Provides
+    @Singleton
+    fun providesUserPreferences(@ApplicationContext context: Context): UserPreferences {
+        return UserPreferences(context)
     }
 } 

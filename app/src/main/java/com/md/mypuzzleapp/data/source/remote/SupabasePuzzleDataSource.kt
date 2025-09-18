@@ -6,7 +6,6 @@ import java.io.ByteArrayOutputStream
 import com.md.mypuzzleapp.data.source.PuzzleDataSource
 import com.md.mypuzzleapp.di.SupabaseModule
 import com.md.mypuzzleapp.domain.model.*
-import com.md.mypuzzleapp.util.DeviceIdUtil
 import io.github.jan.supabase.postgrest.query.Columns
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -17,20 +16,27 @@ import coil.ImageLoader
 import coil.request.ImageRequest
 import coil.request.SuccessResult
 import android.graphics.drawable.BitmapDrawable
+import com.md.mypuzzleapp.data.local.UserPreferences
+import kotlinx.coroutines.flow.firstOrNull
+import android.util.Log
 
-class SupabasePuzzleDataSource(private val context: Context) : PuzzleDataSource {
-    private val userId: String
-        get() = DeviceIdUtil.getDeviceId(context)
+class SupabasePuzzleDataSource(private val context: Context,  private val userPreferences: UserPreferences) : PuzzleDataSource {
 
     private val BUCKET = "puzzle-images"
 
+    companion object {
+        private const val TAG = "SupabasePuzzleDS"
+    }
+
     override fun getAllPuzzles(): Flow<List<Puzzle>> = flow {
         try {
+            val hashedEmail = userPreferences.hashedEmail.firstOrNull() ?: ""
+            Log.d(TAG, "Getting all puzzles for hashed email: ${if (hashedEmail.isNotEmpty()) hashedEmail else "[empty]"}")
             val response = withContext(Dispatchers.IO) {
                 SupabaseModule.database
                     .from("puzzles")
                     .select(columns = Columns.list("id", "name", "difficulty", "image_url", "piece_count", "created_at", "user_id")) {
-                        filter { eq("user_id", userId) }
+                        filter { eq("user_id", userPreferences.hashedEmail.firstOrNull() ?: "") }
                     }
                     .decodeList<SupabasePuzzleDto>()
             }
@@ -55,7 +61,7 @@ class SupabasePuzzleDataSource(private val context: Context) : PuzzleDataSource 
                     .select(columns = Columns.list("id", "name", "difficulty", "image_url", "piece_count", "created_at", "user_id")) {
                         filter {
                             eq("id", id)
-                            eq("user_id", userId)
+                            eq("user_id", userPreferences.hashedEmail.firstOrNull() ?: "")
                         }
                     }
                     .decodeSingle<SupabasePuzzleDto>()
@@ -64,7 +70,7 @@ class SupabasePuzzleDataSource(private val context: Context) : PuzzleDataSource 
             val bucket = SupabaseModule.storage.from(BUCKET)
             // Prefer existing image_url; else assume .png path
             val finalUrl = response.imageUrl?.takeIf { it.isNotBlank() } ?: run {
-                val folder = response.userId ?: userId
+                val folder = userPreferences.hashedEmail.firstOrNull() ?: "guest"
                 val path = "$folder/${response.id}.png"
                 bucket.publicUrl(path)
             }
@@ -96,6 +102,8 @@ class SupabasePuzzleDataSource(private val context: Context) : PuzzleDataSource 
 
     override suspend fun addPuzzle(puzzle: Puzzle): String = withContext(Dispatchers.IO) {
         try {
+            val userId = userPreferences.hashedEmail.firstOrNull() ?: "guest"
+            Log.d(TAG, "Adding puzzle. Hashed email being used: $userId")
             // 1) Upload image to Supabase Storage if available
             val imageUrl: String? = puzzle.originalImage?.let { bmp ->
                 val path = "$userId/${puzzle.id}.png"
@@ -114,7 +122,7 @@ class SupabasePuzzleDataSource(private val context: Context) : PuzzleDataSource 
             // 2) Build DTO with image_url populated (if upload happened)
             val dto = puzzle
                 .toSupabaseDto()
-                .copy(userId = userId, deviceId = userId, imageUrl = imageUrl ?: "")
+                .copy(userId = userId, imageUrl = imageUrl ?: "")
 
             // 3) Insert and return id
             val response = SupabaseModule.database
@@ -130,9 +138,11 @@ class SupabasePuzzleDataSource(private val context: Context) : PuzzleDataSource 
 
     override suspend fun updatePuzzle(puzzle: Puzzle) = withContext(Dispatchers.IO) {
         try {
+            val userId = userPreferences.hashedEmail.firstOrNull() ?: ""
+            Log.d(TAG, "Updating puzzle ${puzzle.id}. Hashed email being used: ${if (userId.isNotEmpty()) userId else "[empty]"}")
             val dto = puzzle.toSupabaseDto().copy(userId = userId)
 
-            val userDto = SupabaseUserDto(userId, userId, System.currentTimeMillis().toString())
+            val userDto = SupabaseUserDto("","", System.currentTimeMillis().toString())
 
             SupabaseModule.database
                 .from("users")
@@ -154,6 +164,8 @@ class SupabasePuzzleDataSource(private val context: Context) : PuzzleDataSource 
 
     override suspend fun deletePuzzle(id: String) = withContext(Dispatchers.IO) {
         try {
+            val userId = userPreferences.hashedEmail.firstOrNull() ?: ""
+            Log.d(TAG, "Deleting puzzle $id. Hashed email being used: ${if (userId.isNotEmpty()) userId else "[empty]"}")
             SupabaseModule.database
                 .from("puzzles")
                 .delete {

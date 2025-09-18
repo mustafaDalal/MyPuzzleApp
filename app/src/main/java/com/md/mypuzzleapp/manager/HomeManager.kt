@@ -16,7 +16,6 @@ import com.md.mypuzzleapp.domain.model.PiecePlacement
 import android.content.Context
 import com.md.mypuzzleapp.domain.repository.PuzzleRepository
 import android.util.Log
-import com.md.mypuzzleapp.util.DeviceIdUtil
 
 @Singleton
 class HomeManager @Inject constructor(
@@ -37,7 +36,6 @@ class HomeManager @Inject constructor(
         bitmap: Bitmap,
         context: Context
     ): Result<Puzzle> {
-        val userId = DeviceIdUtil.getDeviceId(context)
         
         // TODO: Check for existing puzzle with same name and userId using Supabase
         // For now, we'll skip this check and implement it later with Supabase queries

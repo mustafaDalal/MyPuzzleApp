@@ -152,12 +152,15 @@ fun PuzzleScreen(
                     ) {
                         if (state.isRevealingImage) {
                             state.puzzle?.let { puzzle ->
-                                Image(
-                                    bitmap = state.puzzlePieces.first().bitmap.asImageBitmap(),
-                                    contentDescription = "Full puzzle image",
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentScale = ContentScale.Fit
-                                )
+                                val revealBitmap = puzzle.originalImage ?: state.puzzlePieces.firstOrNull()?.bitmap
+                                revealBitmap?.let { bmp ->
+                                    Image(
+                                        bitmap = bmp.asImageBitmap(),
+                                        contentDescription = "Full puzzle image",
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Fit
+                                    )
+                                }
                             }
                         } else {
                             val gridSize = state.puzzle?.difficulty?.gridSize ?: return@Box

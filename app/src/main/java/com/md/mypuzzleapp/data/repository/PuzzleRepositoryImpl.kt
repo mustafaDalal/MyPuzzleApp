@@ -7,7 +7,6 @@ import android.net.Uri
 import com.md.mypuzzleapp.data.source.PuzzleDataSource
 import com.md.mypuzzleapp.domain.model.*
 import com.md.mypuzzleapp.domain.repository.PuzzleRepository
-import com.md.mypuzzleapp.util.DeviceIdUtil
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -17,6 +16,7 @@ import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 import android.util.Log
+import com.md.mypuzzleapp.data.local.UserPreferences
 
 @Singleton
 class PuzzleRepositoryImpl @Inject constructor(
@@ -115,7 +115,6 @@ class PuzzleRepositoryImpl @Inject constructor(
         context: Context
     ): Result<Puzzle> {
         return try {
-            val userId = DeviceIdUtil.getDeviceId(context)
             val puzzleId = UUID.randomUUID().toString()
             
             // Create puzzle object

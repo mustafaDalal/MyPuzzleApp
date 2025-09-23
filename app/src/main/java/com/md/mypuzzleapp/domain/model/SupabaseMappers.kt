@@ -18,7 +18,7 @@ fun Puzzle.toSupabaseDto(): SupabasePuzzleDto = SupabasePuzzleDto(
     imageUrl = "", // Will be set when image is uploaded
     pieceCount = pieces.size,
     createdAt = createdAt.toString(),
-    userId = null // TODO: Set when user authentication is implemented
+    userId = "" // TODO: Set when user authentication is implemented
 )
 
 fun SupabasePuzzleDto.toDomain(): Puzzle = Puzzle(

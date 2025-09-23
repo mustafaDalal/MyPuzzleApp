@@ -15,6 +15,7 @@ import androidx.navigation.navArgument
 import com.md.mypuzzleapp.presentation.common.Screen
 import com.md.mypuzzleapp.presentation.home.HomeScreen
 import com.md.mypuzzleapp.presentation.puzzle.PuzzleScreen
+import com.md.mypuzzleapp.presentation.settings.SettingsScreen
 import com.md.mypuzzleapp.ui.theme.MyPuzzleAppTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -55,6 +56,12 @@ class MainActivity : ComponentActivity() {
                             PuzzleScreen(onNavigateBack = { navController.navigate(Screen.Home.route)})
 
 
+                        }
+
+                        composable(route = Screen.Settings.route) {
+                            SettingsScreen(
+                                navController = navController,
+                            )
                         }
                     }
                 }

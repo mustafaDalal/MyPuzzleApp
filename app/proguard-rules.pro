@@ -19,3 +19,8 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# Suppress SLF4J missing-class warnings (e.g., org.slf4j.impl.StaticLoggerBinder)
+# This avoids R8 failing on release builds when only slf4j-api is present
+# and no runtime binding is packaged.
+-dontwarn org.slf4j.**

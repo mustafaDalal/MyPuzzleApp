@@ -12,4 +12,21 @@
 /captures
 .externalNativeBuild
 .cxx
-local.properties
+key.properties
+*.jks
+
+# Additional secrets and signing safety
+*.keystore
+google-services.json
+app/google-services.json
+.env
+.env.*
+secrets.properties
+*.pem
+*.p12
+*.der
+
+# Android build artifacts
+**/build/
+*.apk
+*.aab

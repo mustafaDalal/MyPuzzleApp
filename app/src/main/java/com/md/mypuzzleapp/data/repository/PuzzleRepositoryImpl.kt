@@ -116,15 +116,15 @@ class PuzzleRepositoryImpl @Inject constructor(
     ): Result<Puzzle> {
         return try {
             val puzzleId = UUID.randomUUID().toString()
-            
+
             // Create puzzle object
             val puzzle = Puzzle(
                 id = puzzleId,
                 name = name,
-                difficulty = when (difficulty) {
-                    "Easy" -> PuzzleDifficulty.EASY
-                    "Medium" -> PuzzleDifficulty.MEDIUM
-                    "Hard" -> PuzzleDifficulty.HARD
+                difficulty = when (difficulty.lowercase()) {
+                    "easy" -> PuzzleDifficulty.EASY
+                    "medium" -> PuzzleDifficulty.MEDIUM
+                    "hard" -> PuzzleDifficulty.HARD
                     else -> PuzzleDifficulty.EASY
                 },
                 pieces = emptyList(), // Will be generated when puzzle is loaded

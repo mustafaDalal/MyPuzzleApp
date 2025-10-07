@@ -136,8 +136,8 @@ class HomeViewModel @Inject constructor(
                     state = state.copy(
                         isLoading = false,
                         isUploadDialogVisible = false,
-                        uploadImageName = "",
-                        selectedDifficulty = PuzzleDifficulty.EASY
+                        uploadImageName = ""
+                        // Don't reset selectedDifficulty here as it should be preserved for future operations
                     )
                     if (puzzle != null) {
                         // Optimistically add to grid so it appears instantly
@@ -154,7 +154,6 @@ class HomeViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 // Dismiss the dialog on unexpected errors
-                state = state.copy(isLoading = false, isUploadDialogVisible = false)
                 _uiEvent.send(UiEvent.ShowSnackbar(e.message ?: "Error creating puzzle"))
             }
         }
@@ -164,17 +163,28 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             state = state.copy(isLoading = true)
             try {
+                // Use user-provided name if available, otherwise generate a default one
+                val puzzleName = if (state.uploadImageName.isNotBlank()) {
+                    state.uploadImageName
+                } else {
+                    "Random Puzzle ${System.currentTimeMillis()}"
+                }
+                
+                // Use the currently selected difficulty
+                val difficulty = state.selectedDifficulty
+                Log.d("HomeViewModel", "fetchRandomImage: using difficulty = ${difficulty.name} (${difficulty.gridSize}x${difficulty.gridSize})")
+                
                 homeManager.fetchRandomImage(
-                    name = "Random Puzzle ${System.currentTimeMillis()}",
-                    difficulty = state.selectedDifficulty.name,
-                    context = context
+                    name = puzzleName,
+                    difficulty = difficulty.name,
+                    context
                 ).fold(
                     onSuccess = { puzzle ->
                         state = state.copy(
                             isLoading = false,
                             isUploadDialogVisible = false,
-                            uploadImageName = "",
-                            selectedDifficulty = PuzzleDifficulty.EASY
+                            uploadImageName = ""
+                            // Don't reset selectedDifficulty here to preserve user's choice
                         )
                         // Refresh list so Home reflects the newly fetched puzzle
                         loadPuzzles()

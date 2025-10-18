@@ -31,8 +31,17 @@ class PuzzleRepositoryImpl @Inject constructor(
     override fun getPuzzleById(id: String): Flow<Puzzle?> = puzzleDataSource.getPuzzleById(id)
     
     override suspend fun addPuzzle(puzzle: Puzzle): String {
+        // Add to local list for immediate access
         puzzles.add(puzzle)
-        return puzzle.id
+        try {
+            // Persist to Supabase via data source
+            val savedPuzzleId = puzzleDataSource.addPuzzle(puzzle)
+            Log.d("PuzzleRepository", "Puzzle saved to Supabase with id: $savedPuzzleId")
+            return savedPuzzleId
+        } catch (e: Exception) {
+            Log.e("PuzzleRepository", "Failed to save puzzle to Supabase", e)
+            throw e
+        }
     }
     
     override suspend fun updatePuzzle(puzzle: Puzzle) {
@@ -40,10 +49,14 @@ class PuzzleRepositoryImpl @Inject constructor(
         if (index != -1) {
             puzzles[index] = puzzle
         }
+        // Also update in persistent storage
+        puzzleDataSource.updatePuzzle(puzzle)
     }
     
     override suspend fun deletePuzzle(id: String) {
         puzzles.removeIf { it.id == id }
+        // Also delete from persistent storage
+        puzzleDataSource.deletePuzzle(id)
     }
     
     override suspend fun createPuzzleFromBitmap(

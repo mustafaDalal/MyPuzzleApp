@@ -19,13 +19,14 @@ class SupabasePuzzleProgressDataSource(private val context: Context, private val
 
     override fun getPuzzleProgress(puzzleId: String): Flow<PuzzleProgress?> = flow {
         try {
+            val userId = userPreferences.getEffectiveUserId()
             val latest = withContext(Dispatchers.IO) {
                 val rows = SupabaseModule.database
                     .from("puzzle_progress")
                     .select(columns = Columns.list("id", "puzzle_id", "user_id", "moves", "completed_pieces", "total_pieces", "is_completed", "last_played", "piece_placements")) {
                         filter {
                             eq("puzzle_id", puzzleId)
-                            eq("user_id", userPreferences.hashedEmail.firstOrNull() ?: "")
+                            eq("user_id", userId)
                         }
                     }
                     .decodeList<SupabasePuzzleProgressDto>()
@@ -43,7 +44,8 @@ class SupabasePuzzleProgressDataSource(private val context: Context, private val
 
     override suspend fun savePuzzleProgress(puzzleProgress: PuzzleProgress) = withContext(Dispatchers.IO) {
         try {
-            val progressDto = puzzleProgress.toSupabaseDto().copy(userId = userPreferences.hashedEmail.firstOrNull() ?: "")
+            val userId = userPreferences.getEffectiveUserId()
+            val progressDto = puzzleProgress.toSupabaseDto().copy(userId = userId)
             SupabaseModule.database
                 .from("puzzle_progress")
                 .upsert(
@@ -58,10 +60,14 @@ class SupabasePuzzleProgressDataSource(private val context: Context, private val
 
     override suspend fun deletePuzzleProgress(puzzleId: String) = withContext(Dispatchers.IO) {
         try {
+            val userId = userPreferences.getEffectiveUserId()
             SupabaseModule.database
                 .from("puzzle_progress")
                 .delete {
-                    filter { eq("puzzle_id", puzzleId) }
+                    filter {
+                        eq("puzzle_id", puzzleId)
+                        eq("user_id", userId)
+                    }
                 }
             Unit
         } catch (e: Exception) {

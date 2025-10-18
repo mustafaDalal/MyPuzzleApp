@@ -30,13 +30,13 @@ class SupabasePuzzleDataSource(private val context: Context,  private val userPr
 
     override fun getAllPuzzles(): Flow<List<Puzzle>> = flow {
         try {
-            val hashedEmail = userPreferences.hashedEmail.firstOrNull() ?: ""
-            Log.d(TAG, "Getting all puzzles for hashed email: ${if (hashedEmail.isNotEmpty()) hashedEmail else "[empty]"}")
+            val userId = userPreferences.getEffectiveUserId()
+            Log.d(TAG, "Getting all puzzles for user_id: $userId")
             val response = withContext(Dispatchers.IO) {
                 SupabaseModule.database
                     .from("puzzles")
                     .select(columns = Columns.list("id", "name", "difficulty", "image_url", "piece_count", "created_at", "user_id")) {
-                        filter { eq("user_id", userPreferences.hashedEmail.firstOrNull() ?: "") }
+                        filter { eq("user_id", userId) }
                     }
                     .decodeList<SupabasePuzzleDto>()
             }
@@ -55,13 +55,14 @@ class SupabasePuzzleDataSource(private val context: Context,  private val userPr
 
     override fun getPuzzleById(id: String): Flow<Puzzle?> = flow {
         try {
+            val userId = userPreferences.getEffectiveUserId()
             val response = withContext(Dispatchers.IO) {
                 SupabaseModule.database
                     .from("puzzles")
                     .select(columns = Columns.list("id", "name", "difficulty", "image_url", "piece_count", "created_at", "user_id")) {
                         filter {
                             eq("id", id)
-                            eq("user_id", userPreferences.hashedEmail.firstOrNull() ?: "")
+                            eq("user_id", userId)
                         }
                     }
                     .decodeSingle<SupabasePuzzleDto>()
@@ -70,7 +71,7 @@ class SupabasePuzzleDataSource(private val context: Context,  private val userPr
             val bucket = SupabaseModule.storage.from(BUCKET)
             // Prefer existing image_url; else assume .png path
             val finalUrl = response.imageUrl?.takeIf { it.isNotBlank() } ?: run {
-                val folder = userPreferences.hashedEmail.firstOrNull() ?: "guest"
+                val folder = userId  // Use the already resolved userId
                 val path = "$folder/${response.id}.png"
                 bucket.publicUrl(path)
             }
@@ -102,8 +103,8 @@ class SupabasePuzzleDataSource(private val context: Context,  private val userPr
 
     override suspend fun addPuzzle(puzzle: Puzzle): String = withContext(Dispatchers.IO) {
         try {
-            val userId = userPreferences.hashedEmail.firstOrNull() ?: "guest"
-            Log.d(TAG, "Adding puzzle. Hashed email being used: $userId")
+            val userId = userPreferences.getEffectiveUserId()
+            Log.d(TAG, "Adding puzzle. User ID being used: $userId")
             // 1) Upload image to Supabase Storage if available
             val imageUrl: String? = puzzle.originalImage?.let { bmp ->
                 val path = "$userId/${puzzle.id}.png"
@@ -138,8 +139,7 @@ class SupabasePuzzleDataSource(private val context: Context,  private val userPr
 
     override suspend fun updatePuzzle(puzzle: Puzzle) = withContext(Dispatchers.IO) {
         try {
-            val userId = userPreferences.hashedEmail.firstOrNull() ?: ""
-            Log.d(TAG, "Updating puzzle ${puzzle.id}. Hashed email being used: ${if (userId.isNotEmpty()) userId else "[empty]"}")
+            val userId = userPreferences.getEffectiveUserId()
             val dto = puzzle.toSupabaseDto().copy(userId = userId)
 
             val userDto = SupabaseUserDto("","", System.currentTimeMillis().toString())
@@ -164,8 +164,7 @@ class SupabasePuzzleDataSource(private val context: Context,  private val userPr
 
     override suspend fun deletePuzzle(id: String) = withContext(Dispatchers.IO) {
         try {
-            val userId = userPreferences.hashedEmail.firstOrNull() ?: ""
-            Log.d(TAG, "Deleting puzzle $id. Hashed email being used: ${if (userId.isNotEmpty()) userId else "[empty]"}")
+            val userId = userPreferences.getEffectiveUserId()
             SupabaseModule.database
                 .from("puzzles")
                 .delete {

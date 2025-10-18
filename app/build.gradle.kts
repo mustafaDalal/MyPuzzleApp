@@ -57,6 +57,20 @@ android {
             if (hasKeystore) {
                 signingConfig = signingConfigs.getByName("release")
             }
+
+            // BuildConfig values for release
+            buildConfigField("String", "SUPABASE_URL", "\"https://zylcdacetfyqfztjndfx.supabase.co\"")
+            buildConfigField("String", "SUPABASE_ANON_KEY", "\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp5bGNkYWNldGZ5cWZ6dGpuZGZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ5MzYwMjcsImV4cCI6MjA3MDUxMjAyN30.Gkl-zzDKgxVEgITDEt4-d6dP_1w2E8-V4lxCLkO2RAs\"")
+        }
+
+        debug {
+            // Debug builds should not be minified for easier debugging
+            isMinifyEnabled = false
+            isDebuggable = true
+
+            // BuildConfig values for debug (same as release for now)
+            buildConfigField("String", "SUPABASE_URL", "\"https://zylcdacetfyqfztjndfx.supabase.co\"")
+            buildConfigField("String", "SUPABASE_ANON_KEY", "\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp5bGNkYWNldGZ5cWZ6dGpuZGZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ5MzYwMjcsImV4cCI6MjA3MDUxMjAyN30.Gkl-zzDKgxVEgITDEt4-d6dP_1w2E8-V4lxCLkO2RAs\"")
         }
     }
     compileOptions {
@@ -68,6 +82,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.1"

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- Exclude specific shared preferences -->
+    <exclude domain="sharedpref" path="debug_shared_prefs.xml"/>
+    
+    <!-- Include application data -->
+    <include domain="sharedpref" path="."/>
+    <include domain="database" path="."/>
+    <include domain="file" path="."/>
+    <include domain="root" path="auto_backup"/>
+</full-backup-content>
